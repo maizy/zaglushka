@@ -1,0 +1,85 @@
+/**
+ * Sample config for zaglushka.py
+ *
+ * Json format, but oneline & multiline comments allowed
+ * Currently only utf-8 configs support.
+ */
+{
+    //base stubs path, relation to example.json dir or absolute
+    "stubs_base_path": "./stubs",
+
+    //urls stubs
+    "urls": [
+
+        // simple stub
+        {
+            "path": "/some/path",
+            "response_file": "page1.json"
+            // by default:
+            // "method": "get"
+            // any query params accepted
+            // headers: Content-Type: text/plain, Content-Length
+        },
+
+        // stub for path with query params
+        {
+            "path": "/orgs/hhru/repos",
+
+            // relative to `stubs_base_path` or absolute
+            "response_file": "page1.json",
+
+            // headers file
+            "headers_file": "page1.headers",
+
+            "query": {
+                "required": {
+                    "page": "1",
+                    "per_page": "100"
+                },
+                "other_allowed": true
+            }
+        },
+
+        // stub for POST
+        {
+            "path": "/collection/item",
+            "method": "post",
+
+            // response body as is
+            "response": "ok 10456",
+
+            // headers pairs
+            "headers": {
+                "Content-Type": "text/plain; charset=utf-8",
+                "Date": "Wed, 23 Apr 2014 06: 14: 42 GMT"
+            }
+        },
+
+        // stub with json
+        {
+            "path": "/collection/item2",
+            "method": "post",
+
+            // if response is dict or list, it will be encoded as json
+            "response": {
+                "status": "ok",
+                "bytes": "10456"
+            },
+
+            // headers pairs
+            "headers": {
+                "Content-Type": "application/json; charset=utf-8",
+                "Server": "FooBooServer"
+            }
+        },
+
+        // stub 404 response
+        {
+            "path": "/orgs/notexists/repos",
+            // hardcoded response body
+            // don't forget about json escaping
+            "response": "{}",
+            "code": 404
+        }
+    ]
+}

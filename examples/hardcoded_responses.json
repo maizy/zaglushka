@@ -1,0 +1,26 @@
+/**
+ * Super simple config for zaglushka.py
+ *
+ * Json format, but oneline & multiline comments allowed
+ * Currently only utf-8 configs support.
+ */
+{
+    "urls": [
+        {
+            "path": "/",
+            "response": "Hi, I'm stub server.\nRUS: Привет, я stub-сервер."
+        },
+        {
+            "path": "/status",
+            "response": "OK"
+        },
+        {
+            "path": "/collection",
+            "method": "post",
+            "code": 403,
+            "response": {
+                "error": "Not allowed"
+            }
+        }
+    ]
+}
