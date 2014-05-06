@@ -8,7 +8,4 @@ class DefaultResponseTestCase(ZaglushkaAsyncHTTPTestCase):
         return {}
 
     def test_default_response(self):
-        response = self.fetch('/path')
-        self.assertEqual(response.code, 404)
-        self.assertResponseBody('', response)
-        self.assertEqual(response.headers['X-Zaglushka-Default-Response'], 'true')
+        self.assertIsDefaultResponse(self.fetch('/path'))

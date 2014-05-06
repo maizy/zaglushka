@@ -2,7 +2,7 @@ from setuptools import setup
 
 setup(
     name='zaglushka',
-    version='0.0.1',
+    version='0.0.2',
     install_requires=['tornado>=3.2'],
     tests_require=['nose>=1.3', 'pep8>=1.3'],
     test_suite='nose.collector',

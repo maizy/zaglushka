@@ -58,13 +58,25 @@ def choose_matcher(spec):
     method = spec['method'].upper() if 'method' in spec else None
     if 'path' in spec:
         return build_simple_matcher(spec['path'], method)
-    # TODO: regexp path matcher
+    elif 'path_regexp' in spec:
+        return build_regexp_matcher(spec['path_regexp'], method, warn_func=logger.warning)
     else:
         return None
 
 
 def build_simple_matcher(rel_path, method):
     return lambda request: (method is None or request.method == method) and request.path == rel_path
+
+
+def build_regexp_matcher(pattern, method, warn_func=None):
+    try:
+        pattern_compiled = re.compile(pattern)
+    except re.error as e:
+        if warn_func is not None:
+            warn_func('Unable to compile regexp "{}": {}'.format(pattern, e))
+        return None
+    return lambda request: ((method is None or request.method == method) and
+                            re.search(pattern_compiled, request.path) is not None)
 
 always_match = lambda _: True
 
