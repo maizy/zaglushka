@@ -1,10 +1,21 @@
 # _*_ coding: utf-8 _*_
+from os import path
 from logging import NullHandler
 
 from tornado.testing import AsyncHTTPTestCase
 from tornado.log import app_log, gen_log, access_log
 
 from zaglushka import build_app, Config, logger as zaglushka_logger
+
+PROJECT_ROOT = path.abspath(path.join(path.dirname(__file__), '..'))
+EXAMPLES_DIR = path.join(PROJECT_ROOT, 'examples')
+
+
+def read_example(rel_path):
+    file = open(path.join(EXAMPLES_DIR, rel_path), 'r')
+    content = file.read()
+    file.close()
+    return content
 
 
 class ZaglushkaAsyncHTTPTestCase(AsyncHTTPTestCase):
@@ -21,12 +32,16 @@ class ZaglushkaAsyncHTTPTestCase(AsyncHTTPTestCase):
     def get_zaglushka_config(self):
         raise NotImplementedError()
 
+    def get_zaglushka_config_pseudo_path(self):
+        return path.join(PROJECT_ROOT, 'zaglushka_tests', 'pseudo_config.json')
+
     def get_app(self):
         self.raw_config = self.get_zaglushka_config()
         self._log_handler = self._CollectLoggingHandler()
         for logger in (app_log, gen_log, access_log, zaglushka_logger):
             logger.addHandler(self._log_handler)
-        return build_app(Config(self.raw_config))
+        config = Config.from_config(self.raw_config, self.get_zaglushka_config_pseudo_path())
+        return build_app(config)
 
     def get_app_logs(self):
         return self._log_handler.records

@@ -23,6 +23,7 @@ class Config(object):
 
     @classmethod
     def from_console_argument(cls, console_argument):
+        # TODO: tests
         full_path = path.abspath(path.expanduser(console_argument))
         if not path.exists(full_path):
             logger.critical('Config not found at {}'.format(full_path))
@@ -34,15 +35,29 @@ class Config(object):
         except ValueError as e:
             logger.exception('Unable to parse config: {}'.format(e))
             raise
-        return cls(raw)
+        return cls.from_config(raw, full_path)
 
-    def __init__(self, raw_config):
+    @classmethod
+    def from_config(cls, raw, full_path):
+        config_dirname = path.dirname(full_path)
+        if 'stubs_base_path' in raw:
+            raw_path = raw['stubs_base_path']
+            if raw_path.startswith('/'):
+                stubs_base_path = raw_path
+            else:
+                stubs_base_path = path.join(config_dirname, raw_path)
+        else:
+            stubs_base_path = config_dirname
+        return cls(raw, path.abspath(stubs_base_path))
+
+    def __init__(self, raw_config, stubs_base_path):
         self.raw = raw_config
+        self.stubs_base_path = stubs_base_path
         rules = []
         for num, url_spec in enumerate(self.raw.get('urls', [])):
             matcher = choose_matcher(url_spec)
             if matcher is not None:
-                responder = choose_responder(url_spec)
+                responder = choose_responder(url_spec, stubs_base_path)
                 if responder is None:
                     logger.warn('Unable to build responder from url spec #{}, skipping'.format(num))
                     continue
@@ -81,7 +96,7 @@ def build_regexp_matcher(pattern, method, warn_func=None):
 always_match = lambda _: True
 
 
-def choose_responder(spec):
+def choose_responder(spec, base_stubs_path):
     code = int(spec.get('code', httplib.OK))
     headers = spec.get('headers', {})  # TODO: read from file
     if 'response' in spec:
@@ -89,7 +104,9 @@ def choose_responder(spec):
         if not isinstance(body, basestring):
             body = json.dumps(body, ensure_ascii=False, encoding=unicode)
         return build_static_response(body, headers, code)
-    # TODO: file based stubs
+    elif 'response_file' in spec:
+        full_path = path.normpath(path.join(base_stubs_path, spec['response_file']))
+        return build_file_response(full_path, headers, code)
     return None
 
 
@@ -103,12 +120,31 @@ def default_response():
 
 def build_static_response(body, headers=None, code=httplib.OK):
 
-    def _responder():
+    def _static_responder():
         return ResponseStub(code=code,
                             headers=headers if headers is not None else {},
                             body_func=lambda handler: handler.finish(body))
 
-    return _responder
+    return _static_responder
+
+
+def build_file_response(full_path, headers=None, code=httplib.OK):
+
+    def _body_func(handler):
+        # detect file at every request, so you can add it where ever you want
+        if not path.isfile(full_path):
+            logger.warning('Unable to find stubs file "{f}" for {m} {url}'
+                           .format(f=full_path, m=handler.request.method, url=handler.request.uri))
+            handler.set_header('X-Zaglushka-Failed-Response', 'true')
+            return handler.finish('')
+        send_file(handler.finish, full_path, handler)
+
+    def _file_responder():
+        return ResponseStub(code=code,
+                            headers=headers if headers is not None else {},
+                            body_func=_body_func)
+
+    return _file_responder
 
 
 def json_minify(data, strip_space=True):
@@ -172,7 +208,7 @@ def send_file(cb, full_path, handler, chunk_size=1024 * 8, ioloop_=None):
 
     todo: async read (currently blocked, chunked output just a fiction)
     """
-    ioloop_ = ioloop_ if ioloop_ is not None else IOLoop.instance()
+    ioloop_ = ioloop_ if ioloop_ is not None else IOLoop.current()
     fd = open(full_path, 'rb')
 
     def send_chunk():
