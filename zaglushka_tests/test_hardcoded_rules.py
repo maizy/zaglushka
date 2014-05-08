@@ -60,6 +60,4 @@ class SimpleRuleTestCase(ZaglushkaAsyncHTTPTestCase):
         response = self.fetch('/hardcoded_headers')
         self.assertEqual(response.code, 200)
         self.assertResponseBody('hardcoded_headers', response)
-        expected_headers = deepcopy(self.raw_config['urls'][3]['headers'])
-        expected_headers['Content-Length'] = str(len('hardcoded_headers'))
-        self.assertEqual(response.headers, expected_headers)
+        self.assertResponseHeaders(self.raw_config['urls'][3]['headers'], response)

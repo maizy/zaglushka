@@ -5,10 +5,11 @@ import unittest
 
 import pep8
 
-_project_root = path.abspath(path.join(path.dirname(__file__), '..'))
-_src_dirs = [path.join(_project_root, 'zaglushka.py'),
-             path.join(_project_root, 'zaglushka_tests'),
-             path.join(_project_root, 'setup.py')]
+from zaglushka_tests import PROJECT_ROOT
+
+_src_dirs = [path.join(PROJECT_ROOT, 'zaglushka.py'),
+             path.join(PROJECT_ROOT, 'zaglushka_tests'),
+             path.join(PROJECT_ROOT, 'setup.py')]
 
 
 class StyleTestCase(unittest.TestCase):
