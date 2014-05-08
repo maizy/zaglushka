@@ -15,8 +15,12 @@ from tornado.httpserver import HTTPServer
 
 logger = logging.getLogger('zaglushka')
 
-ResponseStub = namedtuple('ResponseStub', ['code', 'headers', 'body_func'])
+ResponseStub = namedtuple('ResponseStub', ['code', 'headers_func', 'body_func'])
 Rule = namedtuple('Rule', ['matcher', 'responder'])
+
+
+def _get_stub_file_path(base_stubs_path, stub_path):
+    return stub_path if stub_path.startswith('/') else path.join(base_stubs_path, stub_path)
 
 
 class Config(object):
@@ -42,10 +46,7 @@ class Config(object):
         config_dirname = path.dirname(full_path)
         if 'stubs_base_path' in raw:
             raw_path = raw['stubs_base_path']
-            if raw_path.startswith('/'):
-                stubs_base_path = raw_path
-            else:
-                stubs_base_path = path.join(config_dirname, raw_path)
+            stubs_base_path = _get_stub_file_path(config_dirname, raw_path)
         else:
             stubs_base_path = config_dirname
         return cls(raw, path.abspath(stubs_base_path))
@@ -98,53 +99,100 @@ always_match = lambda _: True
 
 def choose_responder(spec, base_stubs_path):
     code = int(spec.get('code', httplib.OK))
-    headers = spec.get('headers', {})  # TODO: read from file
+    headers_func = choose_headers_func(spec, base_stubs_path)
     if 'response' in spec:
         body = spec['response']
         if not isinstance(body, basestring):
             body = json.dumps(body, ensure_ascii=False, encoding=unicode)
-        return build_static_response(body, headers, code)
+        return build_static_response(body, headers_func, code)
     elif 'response_file' in spec:
         full_path = path.normpath(path.join(base_stubs_path, spec['response_file']))
-        return build_file_response(full_path, headers, code)
+        return build_filebased_response(full_path, headers_func, code, warn_func=logger.warning)
     return None
 
 
 def default_response():
     return ResponseStub(code=httplib.NOT_FOUND,
-                        headers={
+                        headers_func=build_static_headers_func({
                             'X-Zaglushka-Default-Response': 'true',
-                        },
+                        }),
                         body_func=lambda handler: handler.finish(''))
 
 
-def build_static_response(body, headers=None, code=httplib.OK):
+def build_static_response(body, headers_func, code=httplib.OK):
 
     def _static_responder():
         return ResponseStub(code=code,
-                            headers=headers if headers is not None else {},
+                            headers_func=headers_func,
                             body_func=lambda handler: handler.finish(body))
 
     return _static_responder
 
 
-def build_file_response(full_path, headers=None, code=httplib.OK):
+def build_filebased_response(full_path, headers_func, code=httplib.OK, warn_func=None):
 
     def _body_func(handler):
         # detect file at every request, so you can add it where ever you want
         if not path.isfile(full_path):
-            logger.warning('Unable to find stubs file "{f}" for {m} {url}'
-                           .format(f=full_path, m=handler.request.method, url=handler.request.uri))
+            if warn_func is not None:
+                warn_func('Unable to find stubs file "{f}" for {m} {url}'
+                          .format(f=full_path, m=handler.request.method, url=handler.request.uri))
             handler.set_header('X-Zaglushka-Failed-Response', 'true')
             return handler.finish('')
         send_file(handler.finish, full_path, handler)
 
-    def _file_responder():
+    def _filebased_responder():
         return ResponseStub(code=code,
-                            headers=headers if headers is not None else {},
+                            headers_func=headers_func,
                             body_func=_body_func)
 
-    return _file_responder
+    return _filebased_responder
+
+
+def choose_headers_func(spec, base_stubs_path):
+    if 'headers' in spec:
+        return build_static_headers_func(spec['headers'])
+    elif 'headers_file' in spec:
+        return build_filebased_headers_func(_get_stub_file_path(base_stubs_path, spec['headers_file']),
+                                            warn_func=logger.warning)
+    else:
+        return build_static_headers_func({})
+
+
+def build_static_headers_func(headers):
+
+    def _static_headers_func(handler):
+        for header, value in headers.iteritems():
+            handler.set_header(header, value)
+
+    return _static_headers_func
+
+
+def build_filebased_headers_func(full_path, warn_func=None):
+
+    def _filebased_headers_func(handler):
+        if not path.isfile(full_path):
+            if warn_func is not None:
+                warn_func('Unable to find headers stubs file "{f}" for {m} {url}'
+                          .format(f=full_path, m=handler.request.method, url=handler.request.uri))
+            handler.add_header('X-Zaglushka-Failed-Headers', 'true')
+            return
+        with open(full_path, 'r') as header_file:  # TODO: check exceptions
+            any_skipped = False
+            for line in header_file:
+                if len(line.strip()) == 0:
+                    continue
+                line = line.strip('\n\r')
+                parts = line.split(': ')
+                if len(parts) != 2:
+                    any_skipped = True
+                    continue
+                header, value = parts
+                handler.add_header(header, value)
+            if any_skipped and warn_func is not None:
+                warn_func('Some headers from file "{f}" skipped because of wrong format')
+
+    return _filebased_headers_func
 
 
 def json_minify(data, strip_space=True):
@@ -209,7 +257,7 @@ def send_file(cb, full_path, handler, chunk_size=1024 * 8, ioloop_=None):
     todo: async read (currently blocked, chunked output just a fiction)
     """
     ioloop_ = ioloop_ if ioloop_ is not None else IOLoop.current()
-    fd = open(full_path, 'rb')
+    fd = open(full_path, 'rb')  # TODO: check exceptions
 
     def send_chunk():
         try:
@@ -267,8 +315,7 @@ class StubHandler(RequestHandler):
             if rule.matcher(self.request):
                 responder = rule.responder()
                 self.set_status(responder.code)
-                for header, value in responder.headers.iteritems():
-                    self.set_header(header, value)
+                responder.headers_func(self)
                 responder.body_func(self)
                 matched = True
                 break
