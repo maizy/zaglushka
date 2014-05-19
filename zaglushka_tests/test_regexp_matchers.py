@@ -8,23 +8,23 @@ class RegExpMatchersTestCase(ZaglushkaAsyncHTTPTestCase):
         return {
             'urls': [
                 {
-                    'path_regexp': '^/letter_[a-z]+$',
+                    'path_regexp': r'^/letter_[a-z]+$',
                     'response': 'regexp1',
                 },
                 {
-                    'path_regexp': '^/letter_[z0-9]+$',
+                    'path_regexp': r'^/letter_[z0-9]+$',
                     'response': 'regexp2',
                 },
                 {
-                    'path_regexp': 'match_[a-z]+_where',
+                    'path_regexp': r'match_[a-z]+_where',
                     'response': 'regexp3',
                 },
                 {
-                    'path_regexp': 'end$',
+                    'path_regexp': r'end$',
                     'response': 'regexp4',
                 },
                 {
-                    'path_regexp': '^/start',
+                    'path_regexp': r'^/start',
                     'response': 'regexp5',
                 },
             ]
@@ -59,11 +59,11 @@ class RegExpMatchAnyTestCase(ZaglushkaAsyncHTTPTestCase):
         return {
             'urls': [
                 {
-                    'path_regexp': '.*',
+                    'path_regexp': r'.*',
                     'response': 'any',
                 },
                 {
-                    'path_regexp': '^/other$',
+                    'path_regexp': r'^/other$',
                     'response': 'wtf',
                 },
             ]
@@ -80,7 +80,7 @@ class TestWrongRegexpTestCase(ZaglushkaAsyncHTTPTestCase):
         return {
             'urls': [
                 {
-                    'path_regexp': '^wrong_regexp[',
+                    'path_regexp': r'^wrong_regexp[',
                     'response': 'wtf?',
                 }
             ]

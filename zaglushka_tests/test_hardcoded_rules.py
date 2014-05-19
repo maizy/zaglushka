@@ -1,6 +1,5 @@
 # _*_ coding: utf-8 _*_
 import json
-from copy import deepcopy
 
 from zaglushka_tests import ZaglushkaAsyncHTTPTestCase
 

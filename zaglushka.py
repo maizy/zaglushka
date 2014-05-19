@@ -72,19 +72,64 @@ class Config(object):
 
 def choose_matcher(spec):
     method = spec['method'].upper() if 'method' in spec else None
+    if 'query' in spec:
+        query_args_matcher = build_simple_query_args_matcher(spec['query'])
+    else:
+        query_args_matcher = always_match
+
     if 'path' in spec:
-        return build_simple_matcher(spec['path'], method)
+        return build_simple_matcher(spec['path'], method, query_args_matcher)
     elif 'path_regexp' in spec:
-        return build_regexp_matcher(spec['path_regexp'], method, warn_func=logger.warning)
+        return build_regexp_matcher(spec['path_regexp'], method, query_args_matcher, warn_func=logger.warning)
     else:
         return None
 
 
-def build_simple_matcher(rel_path, method):
-    return lambda request: (method is None or request.method == method) and request.path == rel_path
+def _is_args_matched(real_args, required, other_allowed=True):
+    def _spec2list(dict_):
+        res = []
+        for arg, val in dict_.iteritems():
+            if isinstance(val, (list, set, tuple)):
+                res.extend((unicode(arg), unicode(v)) for v in val)
+            else:
+                res.append((unicode(arg), unicode(val)))
+        return res
+
+    required = _spec2list(required)
+    real = _spec2list(real_args)
+    matched = []
+
+    if not other_allowed and len(real) > 0 and len(required) == 0:
+        return False
+
+    for pair in real:
+        try:
+            match_index = required.index(pair)
+        except ValueError:
+            match_index = None
+        if match_index is None and not other_allowed:
+            return False
+        elif match_index is not None:
+            required.pop(match_index)
+            matched.append(pair)
+
+    return len(required) == 0
 
 
-def build_regexp_matcher(pattern, method, warn_func=None):
+def build_simple_query_args_matcher(args_spec):
+
+    def _simple_query_args_matcher(request):
+        return _is_args_matched(request.arguments, args_spec.get('required', {}), args_spec.get('other_allowed', True))
+
+    return _simple_query_args_matcher
+
+
+def build_simple_matcher(rel_path, method, query_args_matcher):
+    return lambda request: ((method is None or request.method == method) and request.path == rel_path and
+                            query_args_matcher(request))
+
+
+def build_regexp_matcher(pattern, method, query_args_matcher, warn_func=None):
     try:
         pattern_compiled = re.compile(pattern)
     except re.error as e:
@@ -92,9 +137,12 @@ def build_regexp_matcher(pattern, method, warn_func=None):
             warn_func('Unable to compile regexp "{}": {}'.format(pattern, e))
         return None
     return lambda request: ((method is None or request.method == method) and
-                            re.search(pattern_compiled, request.path) is not None)
+                            re.search(pattern_compiled, request.path) is not None and
+                            query_args_matcher(request))
 
-always_match = lambda _: True
+
+def always_match(*_, **__):
+    return True
 
 
 def choose_responder(spec, base_stubs_path):
