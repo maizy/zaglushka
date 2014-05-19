@@ -238,7 +238,7 @@ def build_filebased_headers_func(full_path, warn_func=None):
                 header, value = parts
                 handler.add_header(header, value)
             if any_skipped and warn_func is not None:
-                warn_func('Some headers from file "{f}" skipped because of wrong format')
+                warn_func('Some headers from file "{f}" skipped because of wrong format'.format(f=full_path))
 
     return _filebased_headers_func
 
