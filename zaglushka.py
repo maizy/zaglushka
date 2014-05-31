@@ -12,6 +12,7 @@ from tornado.ioloop import IOLoop
 from tornado.web import Application, RequestHandler, asynchronous, HTTPError
 from tornado.options import define, options
 from tornado.httpserver import HTTPServer
+from tornado.httputil import HTTPHeaders
 
 logger = logging.getLogger('zaglushka')
 
@@ -225,20 +226,8 @@ def build_filebased_headers_func(full_path, warn_func=None):
                           .format(f=full_path, m=handler.request.method, url=handler.request.uri))
             handler.add_header('X-Zaglushka-Failed-Headers', 'true')
             return
-        with open(full_path, 'r') as header_file:  # TODO: check exceptions
-            any_skipped = False
-            for line in header_file:
-                if len(line.strip()) == 0:
-                    continue
-                line = line.strip('\n\r')
-                parts = line.split(': ')
-                if len(parts) != 2:
-                    any_skipped = True
-                    continue
-                header, value = parts
-                handler.add_header(header, value)
-            if any_skipped and warn_func is not None:
-                warn_func('Some headers from file "{f}" skipped because of wrong format'.format(f=full_path))
+        for header, value in HTTPHeaders.parse(open(full_path, 'r').read()).get_all():
+            handler.add_header(header, value)
 
     return _filebased_headers_func
 

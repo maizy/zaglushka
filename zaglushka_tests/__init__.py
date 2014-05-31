@@ -9,6 +9,7 @@ from zaglushka import build_app, Config, logger as zaglushka_logger
 
 PROJECT_ROOT = path.abspath(path.join(path.dirname(__file__), '..'))
 EXAMPLES_DIR = path.join(PROJECT_ROOT, 'examples')
+TEST_RESOURCES_DIR = path.join(PROJECT_ROOT, 'zaglushka_tests', 'resources')
 
 
 def read_example(rel_path):
