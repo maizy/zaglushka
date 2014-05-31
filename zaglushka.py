@@ -283,7 +283,8 @@ def json_minify(data, strip_space=True):
 
 
 def define_options():
-    define('ports', multiple=True, type=int, help='listen ports (one or more)')
+    define('ports', multiple=True, type=int, help='listen ports (one or more)', metavar='PORT[,PORT,...]',
+           default=[8001])
     define('config', type=str, help='zaglushka config path')
 
 
