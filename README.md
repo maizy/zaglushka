@@ -28,3 +28,7 @@ git clone https://github.com/maizy/zaglushka.git
 cd zaglushka
 python setup.py install
 ```
+
+## Test status
+
+![master branch](https://travis-ci.org/maizy/zaglushka.svg?branch=master)
