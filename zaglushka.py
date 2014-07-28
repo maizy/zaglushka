@@ -322,7 +322,7 @@ def send_file(cb, full_path, handler, chunk_size=1024 * 8, ioloop_=None):
 
         if data is not None and data != '':
             handler.write(data)
-            ioloop_.add_timeout(0.1, handler.async_callback(send_chunk))
+            ioloop_.add_timeout(0.1, send_chunk)
         else:
             fd.close()
             cb()
