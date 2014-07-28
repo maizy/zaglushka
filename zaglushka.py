@@ -5,6 +5,7 @@ import re
 import logging
 import json
 import httplib
+import time
 from os import path
 from collections import namedtuple
 
@@ -16,7 +17,14 @@ from tornado.httputil import HTTPHeaders
 
 logger = logging.getLogger('zaglushka')
 
-ResponseStub = namedtuple('ResponseStub', ['code', 'headers_func', 'body_func'])
+
+class ResponseStub(namedtuple('_ResponseStub', ['code', 'headers_func', 'body_func', 'delay'])):
+    def __new__(cls, **kwargs):
+        data = {k: None for k in cls._fields}
+        data.update(kwargs)
+        return super(ResponseStub, cls).__new__(cls, **data)
+
+
 Rule = namedtuple('Rule', ['matcher', 'responder'])
 
 
@@ -149,15 +157,17 @@ def always_match(*_, **__):
 def choose_responder(spec, base_stubs_path):
     code = int(spec.get('code', httplib.OK))
     delay = float(spec['delay']) if 'delay' in spec else None
+    stub_kwargs = {'code': code, 'delay': delay}
     headers_func = choose_headers_func(spec, base_stubs_path)
     if 'response' in spec:
         body = spec['response']
         if not isinstance(body, basestring):
             body = json.dumps(body, ensure_ascii=False, encoding=unicode)
-        return build_static_response(body, headers_func, code)
+        return build_static_response(body, headers_func, **stub_kwargs)
     elif 'response_file' in spec:
         full_path = path.normpath(path.join(base_stubs_path, spec['response_file']))
-        return build_filebased_response(full_path, headers_func, code, warn_func=logger.warning)
+        return build_filebased_response(full_path, headers_func, warn_func=logger.warning,
+                                        **stub_kwargs)
     return None
 
 
@@ -171,21 +181,21 @@ def default_response():
     )()
 
 
-def build_static_response(body, headers_func, code=httplib.OK):
+def build_static_response(body, headers_func, **stub_kwargs):
 
     def _body_func(handler, ready_cb):
         handler.write(body)
         ready_cb()
 
     def _static_responder():
-        return ResponseStub(code=code,
-                            headers_func=headers_func,
-                            body_func=_body_func)
+        return ResponseStub(headers_func=headers_func,
+                            body_func=_body_func,
+                            **stub_kwargs)
 
     return _static_responder
 
 
-def build_filebased_response(full_path, headers_func, code=httplib.OK, warn_func=None):
+def build_filebased_response(full_path, headers_func, warn_func=None, **stub_kwargs):
 
     def _body_func(handler, ready_cb):
         # detect file at every request, so you can add it where ever you want
@@ -198,9 +208,9 @@ def build_filebased_response(full_path, headers_func, code=httplib.OK, warn_func
         send_file(ready_cb, full_path, handler)
 
     def _filebased_responder():
-        return ResponseStub(code=code,
-                            headers_func=headers_func,
-                            body_func=_body_func)
+        return ResponseStub(headers_func=headers_func,
+                            body_func=_body_func,
+                            **stub_kwargs)
 
     return _filebased_responder
 
@@ -350,6 +360,25 @@ class StubHandler(RequestHandler):
     def options(self):
         self.send_stub()
 
+    def _make_response_with_rule(self, responder):
+        """
+        :type responder: ResponseStub
+        """
+        ioloop = IOLoop.current()
+        if responder.delay is None:
+            finish_cb = self.finish
+        else:
+            def finish_cb():
+                timeout = time.time() + responder.delay
+                logger.debug('Delay response for {m} {u} by {sec:.3f} sec'.format(m=self.request.method,
+                                                                                  u=self.request.uri,
+                                                                                  sec=responder.delay))
+                ioloop.add_timeout(timeout, self.finish)
+
+        self.set_status(responder.code)
+        responder.headers_func(self)
+        responder.body_func(self, finish_cb)
+
     def send_stub(self):
         self.clear_header('Server')
         self.clear_header('Content-Type')
@@ -359,9 +388,7 @@ class StubHandler(RequestHandler):
         for rule in config.rules:
             if rule.matcher(self.request):
                 responder = rule.responder()
-                self.set_status(responder.code)
-                responder.headers_func(self)
-                responder.body_func(self, self.finish)
+                self._make_response_with_rule(responder)
                 matched = True
                 break
         if not matched:

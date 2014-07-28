@@ -80,6 +80,14 @@
             // don't forget about json escaping
             "response": "{}",
             "code": 404
+        },
+
+        // long responded backend
+        {
+            "path": "/long_response",
+            "delay": 15, // seconds
+            "response": "so long",
+            "code": 503
         }
     ]
 }
