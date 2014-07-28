@@ -148,6 +148,7 @@ def always_match(*_, **__):
 
 def choose_responder(spec, base_stubs_path):
     code = int(spec.get('code', httplib.OK))
+    delay = float(spec['delay']) if 'delay' in spec else None
     headers_func = choose_headers_func(spec, base_stubs_path)
     if 'response' in spec:
         body = spec['response']
@@ -161,26 +162,32 @@ def choose_responder(spec, base_stubs_path):
 
 
 def default_response():
-    return ResponseStub(code=httplib.NOT_FOUND,
-                        headers_func=build_static_headers_func({
-                            'X-Zaglushka-Default-Response': 'true',
-                        }),
-                        body_func=lambda handler: handler.finish(''))
+    return build_static_response(
+        body='',
+        headers_func=build_static_headers_func({
+            'X-Zaglushka-Default-Response': 'true',
+        }),
+        code=httplib.NOT_FOUND
+    )()
 
 
 def build_static_response(body, headers_func, code=httplib.OK):
 
+    def _body_func(handler, ready_cb):
+        handler.write(body)
+        ready_cb()
+
     def _static_responder():
         return ResponseStub(code=code,
                             headers_func=headers_func,
-                            body_func=lambda handler: handler.finish(body))
+                            body_func=_body_func)
 
     return _static_responder
 
 
 def build_filebased_response(full_path, headers_func, code=httplib.OK, warn_func=None):
 
-    def _body_func(handler):
+    def _body_func(handler, ready_cb):
         # detect file at every request, so you can add it where ever you want
         if not path.isfile(full_path):
             if warn_func is not None:
@@ -188,7 +195,7 @@ def build_filebased_response(full_path, headers_func, code=httplib.OK, warn_func
                           .format(f=full_path, m=handler.request.method, url=handler.request.uri))
             handler.set_header('X-Zaglushka-Failed-Response', 'true')
             return handler.finish('')
-        send_file(handler.finish, full_path, handler)
+        send_file(ready_cb, full_path, handler)
 
     def _filebased_responder():
         return ResponseStub(code=code,
@@ -354,7 +361,7 @@ class StubHandler(RequestHandler):
                 responder = rule.responder()
                 self.set_status(responder.code)
                 responder.headers_func(self)
-                responder.body_func(self)
+                responder.body_func(self, self.finish)
                 matched = True
                 break
         if not matched:
