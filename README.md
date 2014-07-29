@@ -14,8 +14,8 @@ See sample config definition at [examples/example.json](examples/example.json)
 
 ## Requirements
 
-* python 2.7
-* tornado 3.2+
+* python 2.7 (python 3.2+ [in future releases](https://github.com/maizy/zaglushka/issues/17))
+* tornado 3.2+ (temporary <4.0, [will be fixed](https://github.com/maizy/zaglushka/issues/16))
 
 ## Installation
 
