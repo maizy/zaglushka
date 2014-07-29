@@ -1,0 +1,17 @@
+/**
+ * Backend that return 503 error after 15 seconds delay
+ */
+{
+    "urls": [
+
+        {
+            "path_regexp": ".*",
+            "response": "Service unavalable (delayed for ~15 seconds)",
+            "code": 503,
+            "headers" : {
+                "Server": "SlowPoke"
+            },
+            "delay": 15
+        }
+    ]
+}

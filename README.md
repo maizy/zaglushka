@@ -10,7 +10,8 @@ For use only in dev or testing environments.
 
 If you want to bind ports <= 1024 use `sudo`.
 
-See sample config definition at [examples/example.json](examples/example.json)
+See sample config definition at [examples/example.json](examples/example.json) and
+[some more useful examples](examples/).
 
 ## Requirements
 

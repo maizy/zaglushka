@@ -1,0 +1,17 @@
+/**
+ * Server that returns 502 for all requests
+ */
+{
+    "urls": [
+
+        {
+            "path_regexp": ".*",
+            "response": "Gateway timeout",
+            "code": 502,
+            "delay": 1.0, //emulate gateway response delay
+            "headers" : {
+                "Server": "ProxyRobot/0.5"
+            }
+        }
+    ]
+}

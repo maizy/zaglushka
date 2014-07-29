@@ -1,0 +1,16 @@
+/**
+ * Server that returns 500 for all requests
+ */
+{
+    "urls": [
+
+        {
+            "path_regexp": ".*",
+            "response": "Internal server error",
+            "code": 500,
+            "headers" : {
+                "Server": "MyBackendServer/0.5"
+            }
+        }
+    ]
+}
