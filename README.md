@@ -36,6 +36,6 @@ python setup.py install
 
 ## Issues
 
-* [issues for 1.0](https://github.com/maizy/zaglushka/issues?q=is%3Aopen+is%3Aissue+milestone%3A0.1)
-* [post 1.0 issues](https://github.com/maizy/zaglushka/issues?q=is%3Aopen+is%3Aissue+no%3Amilestone)
+* [issues for v0.1](https://github.com/maizy/zaglushka/issues?q=is%3Aopen+is%3Aissue+milestone%3A0.1)
+* [post v0.1 issues](https://github.com/maizy/zaglushka/issues?q=is%3Aopen+is%3Aissue+no%3Amilestone)
 * [submit you own ideas or bugs](https://github.com/maizy/zaglushka/issues/new)
