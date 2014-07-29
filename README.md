@@ -15,7 +15,7 @@ See sample config definition at [examples/example.json](examples/example.json)
 ## Requirements
 
 * python 2.7 (python 3.2+ [in future releases](https://github.com/maizy/zaglushka/issues/17))
-* tornado 3.2+ (temporary <4.0, [will be fixed](https://github.com/maizy/zaglushka/issues/16))
+* tornado 3.2+ (currenly <4.0, [will be fixed](https://github.com/maizy/zaglushka/issues/16))
 
 ## Installation
 
@@ -29,6 +29,13 @@ cd zaglushka
 python setup.py install
 ```
 
-## Test status
+## CI status
 
 ![master branch](https://travis-ci.org/maizy/zaglushka.svg?branch=master)
+
+
+## Issues
+
+* [issues for 1.0](https://github.com/maizy/zaglushka/issues?q=is%3Aopen+is%3Aissue+milestone%3A0.1)
+* [post 1.0 issues](https://github.com/maizy/zaglushka/issues?q=is%3Aopen+is%3Aissue+no%3Amilestone)
+* [submit you own ideas or bugs](https://github.com/maizy/zaglushka/issues/new)
