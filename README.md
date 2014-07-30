@@ -32,9 +32,8 @@ python setup.py install
 
 ## CI status
 
-![Travic CI, test passed: master branch](https://travis-ci.org/maizy/zaglushka.svg?branch=master)
-
-[![Coveralls, coverage status: master branch](https://img.shields.io/coveralls/maizy/zaglushka.svg)](https://coveralls.io/r/maizy/zaglushka?branch=master)
+[![Travis CI, Build Status, master branch](https://travis-ci.org/maizy/zaglushka.svg?branch=master)](https://travis-ci.org/maizy/zaglushka)
+[![Coveralls, Coverage Statusm master branch](https://img.shields.io/coveralls/maizy/zaglushka.svg)](https://coveralls.io/r/maizy/zaglushka?branch=master)
 
 
 ## Issues
