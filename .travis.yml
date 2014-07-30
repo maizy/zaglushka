@@ -4,6 +4,9 @@ python:
 install:
     - pip install pep8
     - pip install coverage
+    - pip install coveralls
     - python setup.py install
 script:
-    - nosetests --with-coverage --cover-package=zaglushka --verbose zaglushka_tests/
+    - coverage run --source=zaglushka setup.py test
+after_success:
+    coveralls
