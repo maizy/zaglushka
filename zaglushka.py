@@ -39,14 +39,14 @@ class Config(object):
         # TODO: tests
         full_path = path.abspath(path.expanduser(console_argument))
         if not path.exists(full_path):
-            logger.critical('Config not found at {}'.format(full_path))
+            logger.error('Config not found at {}'.format(full_path))
             raise Exception('config not found')
         with open(full_path, 'rb') as config_fp:
             cleaned = json_minify(config_fp.read())
         try:
             raw = json.loads(cleaned, encoding='utf-8')
         except ValueError as e:
-            logger.exception('Unable to parse config: {}'.format(e))
+            logger.error('Unable to parse config: {}'.format(e))
             raise
         return cls.from_config(raw, full_path)
 
@@ -411,9 +411,12 @@ def main(args):
     options.logging = 'debug'
     options.parse_command_line(args=args)
     if not options.config:
-        logger.critical('--config param is requeired')
+        logger.error('--config param is required')
         return 1
-    config = Config.from_console_argument(options.config)
+    try:
+        config = Config.from_console_argument(options.config)
+    except Exception:
+        return 2
     application = build_app(config, debug=True)
     server = HTTPServer(application)
     for port in options.ports:
