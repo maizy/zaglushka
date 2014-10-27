@@ -68,11 +68,7 @@ class Config(object):
             matcher = choose_matcher(url_spec)
             if matcher is not None:
                 responder = choose_responder(url_spec, stubs_base_path)
-                if responder is None:
-                    logger.warn('Unable to build responder from url spec #{}, skipping'.format(num))
-                    continue
-                else:
-                    rules.append(Rule(matcher, responder))
+                rules.append(Rule(matcher, responder))
             else:
                 logger.warn('Unable to build matcher from url spec #{}, skipping'.format(num))
         rules.append(Rule(always_match, default_response))
@@ -168,7 +164,8 @@ def choose_responder(spec, base_stubs_path):
         full_path = path.normpath(path.join(base_stubs_path, spec['response_file']))
         return build_filebased_response(full_path, headers_func, warn_func=logger.warning,
                                         **stub_kwargs)
-    return None
+    else:
+        return build_static_response(b'', headers_func, **stub_kwargs)
 
 
 def default_response():

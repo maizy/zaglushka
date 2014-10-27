@@ -19,6 +19,12 @@
             // "method": "get"
             // any query params accepted
             // headers: Content-Type: text/plain, Content-Length
+            // response: empty
+        },
+
+        {
+           "path": "/just_error",
+           "code": 503
         },
 
         // stub for path with query params
