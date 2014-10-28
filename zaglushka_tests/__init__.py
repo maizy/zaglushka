@@ -41,7 +41,7 @@ class ZaglushkaAsyncHTTPTestCase(AsyncHTTPTestCase):
         self._log_handler = self._CollectLoggingHandler()
         for logger in (app_log, gen_log, access_log, zaglushka_logger):
             logger.addHandler(self._log_handler)
-        config = Config.from_config(self.raw_config, self.get_zaglushka_config_pseudo_path())
+        config = Config(self.raw_config, self.get_zaglushka_config_pseudo_path())
         return build_app(config)
 
     def get_app_logs(self):
