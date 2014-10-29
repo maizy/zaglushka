@@ -1,12 +1,19 @@
 language: python
 python:
     - 2.7
+env:
+  - TORNADO_VERSION='==3.2.2'
+  - TORNADO_VERSION='>=3.2'
+  - TORNADO_VERSION='==4.0.2'
+  - TORNADO_VERSION='>=4'
 install:
     - pip install pep8
     - pip install coverage
     - pip install coveralls
-    - python setup.py install
+    - pip install tornado$TORNADO_VERSION
+    - python setup.py develop --no-deps
 script:
     - coverage run --source=zaglushka setup.py test
+
 after_success:
-    coveralls
+    - coveralls
