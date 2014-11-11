@@ -67,6 +67,13 @@ class Config(object):
                 rules.append(Rule(matcher, responder))
             else:
                 logger.warn('Unable to build matcher from url spec #{}, skipping'.format(num))
+        default_response = static_response(
+            body='',
+            headers_func=build_static_headers_func({
+                'X-Zaglushka-Default-Response': 'true',
+            }),
+            code=httplib.NOT_FOUND
+        )
         rules.append(Rule(always_match, default_response))
         self.rules = rules
         self.stubs_base_path = stubs_base_path
@@ -156,40 +163,27 @@ def choose_responder(spec, base_stubs_path):
         body = spec['response']
         if not isinstance(body, basestring):
             body = json.dumps(body, ensure_ascii=False, encoding=unicode)
-        return build_static_response(body, headers_func, **stub_kwargs), paths
+        return static_response(body, headers_func, **stub_kwargs), paths
     elif 'response_file' in spec:
         full_path = path.normpath(path.join(base_stubs_path, spec['response_file']))
         paths.add(full_path)
-        return build_filebased_response(full_path, headers_func, warn_func=logger.warning, **stub_kwargs), paths
+        return filebased_response(full_path, headers_func, warn_func=logger.warning, **stub_kwargs), paths
     else:
-        return build_static_response(b'', headers_func, **stub_kwargs), paths
+        return static_response(b'', headers_func, **stub_kwargs), paths
 
 
-def default_response():
-    return build_static_response(
-        body='',
-        headers_func=build_static_headers_func({
-            'X-Zaglushka-Default-Response': 'true',
-        }),
-        code=httplib.NOT_FOUND
-    )()
-
-
-def build_static_response(body, headers_func, **stub_kwargs):
+def static_response(body, headers_func, **stub_kwargs):
 
     def _body_func(handler, ready_cb):
         handler.write(body)
         ready_cb()
 
-    def _static_responder():
-        return ResponseStub(headers_func=headers_func,
-                            body_func=_body_func,
-                            **stub_kwargs)
-
-    return _static_responder
+    return ResponseStub(headers_func=headers_func,
+                        body_func=_body_func,
+                        **stub_kwargs)
 
 
-def build_filebased_response(full_path, headers_func, warn_func=None, **stub_kwargs):
+def filebased_response(full_path, headers_func, warn_func=None, **stub_kwargs):
 
     def _body_func(handler, ready_cb):
         # detect file at every request, so you can add it where ever you want
@@ -198,15 +192,12 @@ def build_filebased_response(full_path, headers_func, warn_func=None, **stub_kwa
                 warn_func('Unable to find stubs file "{f}" for {m} {url}'
                           .format(f=full_path, m=handler.request.method, url=handler.request.uri))
             handler.set_header('X-Zaglushka-Failed-Response', 'true')
-            return handler.finish('')
+            return ready_cb()
         send_file(ready_cb, full_path, handler)
 
-    def _filebased_responder():
-        return ResponseStub(headers_func=headers_func,
-                            body_func=_body_func,
-                            **stub_kwargs)
-
-    return _filebased_responder
+    return ResponseStub(headers_func=headers_func,
+                        body_func=_body_func,
+                        **stub_kwargs)
 
 
 def choose_headers_func(spec, base_stubs_path):
@@ -387,8 +378,7 @@ class StubHandler(RequestHandler):
         matched = False
         for rule in config.rules:
             if rule.matcher(self.request):
-                responder = rule.responder()
-                self._make_response_with_rule(responder)
+                self._make_response_with_rule(rule.responder)
                 matched = True
                 break
         if not matched:
