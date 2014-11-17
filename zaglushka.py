@@ -224,8 +224,11 @@ def choose_headers_func(spec, base_stubs_path):
 def build_static_headers_func(headers):
 
     def _static_headers_func(handler):
-        for header, value in headers.iteritems():
-            handler.set_header(header, value)
+        for header, values in headers.iteritems():
+            if not isinstance(values, (list, tuple, set, frozenset)):
+                values = [values]
+            for value in values:
+                handler.add_header(header, value)
 
     return _static_headers_func
 

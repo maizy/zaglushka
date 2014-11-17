@@ -35,6 +35,7 @@ class FileBasedHeadersTestCase(ZaglushkaAsyncHTTPTestCase):
         expected_headers = {
             'X-RateLimit-Limit': '5000',
             'X-RateLimit-Remaining': '4985',
+            'X-Id': '123,abc,bcd'
         }
         self.assertResponseHeaders(expected_headers, response)
 

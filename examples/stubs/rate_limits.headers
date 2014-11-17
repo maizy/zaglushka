@@ -1,3 +1,6 @@
+X-id: 123
 X-RateLimit-Limit: 5000
 
 X-RateLimit-Remaining: 4985
+X-Id: abc
+X-Id: bcd

@@ -85,7 +85,11 @@
             // hardcoded response body
             // don't forget about json escaping
             "response": "{}",
-            "code": 404
+            "code": 404,
+            "headers": {
+                "Server": ":(",
+                "X-Id": ["b0a967", "ae4e324"]
+            }
         },
 
         // long responded backend

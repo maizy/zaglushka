@@ -60,3 +60,31 @@ class SimpleRuleTestCase(ZaglushkaAsyncHTTPTestCase):
         self.assertEqual(response.code, 200)
         self.assertResponseBody('hardcoded_headers', response)
         self.assertResponseHeaders(self.raw_config['urls'][3]['headers'], response)
+
+
+class MultipleHeadersTestCase(ZaglushkaAsyncHTTPTestCase):
+
+    def get_zaglushka_config(self):
+        return {
+            'urls': [
+                {
+                    'path': '/response_1',
+                    'headers': {
+                        'X-Custom-Header': 'my;header',
+                        'X-Id': ['23', 'abc']
+                    },
+                    'response': 'response1'
+                },
+            ]
+        }
+
+    def test_hardcoded_multiple_headers(self):
+        response = self.fetch('/response_1')
+        self.assertResponseBody(b'response1', response)
+        self.assertResponseHeaders(
+            {
+                'X-Custom-Header': 'my;header',
+                'X-Id': '23,abc',
+            },
+            response
+        )
