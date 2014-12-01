@@ -6,7 +6,7 @@
 
         {
             "path_regexp": ".*",
-            "response": "Internal server error",
+            "response": "<error>Pechal'ka exception: db connection error</error>",
             "code": 500,
             "headers" : {
                 "Server": "MyBackendServer/0.5"
