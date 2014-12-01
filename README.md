@@ -83,7 +83,7 @@ Server watched for any changes in stub files or config and reload automatically.
 ```js
 //config.json
 {
-    "stubs_base_path": "./stubs",
+    "stubs_base_path": "./stubs",  //by default dirname of config.json used
     "urls": [
         {
             "path": "/some/page.html",
@@ -91,15 +91,60 @@ Server watched for any changes in stub files or config and reload automatically.
             "headers_file": "page1.headers"
         }
     ]
+}
 ```
 
 ### More complicated match rules
 
-...
+```js
+{
+    "urls": [
+        {
+            "path": "/users/maizy/repos",
+            "response_file": "stubs/page1.json",
+            "headers_file": "stubs/page1.headers",
+            "query": {
+                "required": {
+                    "page": "1",
+                    "per_page": "100"
+                },
+                "other_allowed": true  // also match if any additional param exists
+            }
+        },
 
-### Proxy all responses to real server, but stub someone with error
+        {
+            "path": "/users",
+            "response_code": 404,
+            "response": "not found",
+            "query": {
+                "required": {
+                    "user_id": "117",
+                    "field": ["name", "email"]  // multiple param value
+                },
+                "other_allowed": false  // strict match
+            }
+        }
+    ]
+}
+```
 
-...
+### Proxy responses to real server, but stub some with error
+
+```js
+{
+    "urls": [
+        {
+            "path": "/user/m/maizy",
+            "response": "forbidden",
+            "response_code": 403
+        },
+        {
+            "path_regexp": "^/user/(\\w+)/(.*)$",
+            "response_proxy": "http://example.com/app/users/$1/$2" // $1, $2 ... - reg exp matches
+        }
+    ]
+}
+```
 
 
 ## Issues
