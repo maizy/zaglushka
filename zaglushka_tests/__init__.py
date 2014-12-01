@@ -58,7 +58,8 @@ class ZaglushkaAsyncHTTPTestCase(AsyncHTTPTestCase):
     def assertResponseBody(self, expected_body, response, msg=''):
         msg = ': {}'.format(msg) if msg else ''
         expected_body = expected_body.encode('utf-8') if isinstance(expected_body, unicode) else expected_body
-        self.assertEqual(expected_body, response.body, 'Body not matched{}'.format(msg))
+        self.assertEqual(expected_body, response.body, 'Body not matched {!r}!={!r} {}'
+                         .format(expected_body, response.body, msg))
         real_len = int(response.headers['Content-Length'])
         expected_len = len(expected_body)
         self.assertEqual(expected_len, real_len,

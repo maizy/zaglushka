@@ -98,6 +98,33 @@
             "delay": 15, // seconds
             "response": "so long",
             "code": 503
+        },
+
+        //proxy some requests to upstream
+        {
+            "path": "/fixed_proxy",
+            "response_proxy": "http://localhost:7777/fixed/path"
+        },
+
+        //proxy request with some delay
+        {
+            "path_regexp": "^/slow_proxy/(.*)/(.*)$",
+            "response_proxy": "http://localhost:7777/otherpath/$1/$2",
+            "delay": 10 //seconds
+        },
+
+        //proxy with some response headers replaced to config defined
+        {
+            "path_regexp": "^/fixed_proxy/(.*)/(.*)$",
+            "response_proxy": "http://localhost:7777/otherpath/$1/$2",
+            "headers": {
+                "Server": "MyServer/0.1"
+            }
+        },
+        {
+            "path_regexp": "^/fixed_proxy2/(.*)$",
+            "response_proxy": "http://localhost:7777/otherpath/$1",
+            "headers_file": "page1.headers"
         }
     ]
 }

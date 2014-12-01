@@ -6,6 +6,7 @@ import logging
 import json
 import httplib
 import time
+from copy import deepcopy
 from os import path
 from collections import namedtuple
 
@@ -14,6 +15,7 @@ from tornado.web import Application, RequestHandler, asynchronous, HTTPError
 from tornado.options import define, options
 from tornado.httpserver import HTTPServer
 from tornado.httputil import HTTPHeaders
+from tornado.httpclient import AsyncHTTPClient, HTTPRequest
 
 logger = logging.getLogger('zaglushka')
 
@@ -67,14 +69,7 @@ class Config(object):
                 rules.append(Rule(matcher, responder))
             else:
                 logger.warn('Unable to build matcher from url spec #{}, skipping'.format(num))
-        default_response = static_response(
-            body='',
-            headers_func=build_static_headers_func({
-                'X-Zaglushka-Default-Response': 'true',
-            }),
-            code=httplib.NOT_FOUND
-        )
-        rules.append(Rule(always_match, default_response))
+        rules.append(Rule(always_match, default_response()))
         self.rules = rules
         self.stubs_base_path = stubs_base_path
 
@@ -159,17 +154,29 @@ def choose_responder(spec, base_stubs_path):
     delay = float(spec['delay']) if 'delay' in spec else None
     stub_kwargs = {'code': code, 'delay': delay}
     headers_func, paths = choose_headers_func(spec, base_stubs_path)
+    responder = None
     if 'response' in spec:
         body = spec['response']
         if not isinstance(body, basestring):
             body = json.dumps(body, ensure_ascii=False, encoding=unicode)
-        return static_response(body, headers_func, **stub_kwargs), paths
+        responder = static_response(body, headers_func, **stub_kwargs)
     elif 'response_file' in spec:
         full_path = path.normpath(path.join(base_stubs_path, spec['response_file']))
         paths.add(full_path)
-        return filebased_response(full_path, headers_func, warn_func=logger.warning, **stub_kwargs), paths
-    else:
-        return static_response(b'', headers_func, **stub_kwargs), paths
+        responder = filebased_response(full_path, headers_func, warn_func=logger.warning, **stub_kwargs)
+    elif 'response_proxy' in spec and 'path' in spec:
+        responder = proxied_response(
+            url=spec['path'], use_regexp=False, proxy_url=spec['response_proxy'],
+            headers_func=headers_func, warn_func=logger.warn, log_func=logger.debug, **stub_kwargs
+        )
+    elif 'response_proxy' in spec and 'path_regexp' in spec:
+        responder = proxied_response(
+            url=spec['path_regexp'], use_regexp=True, proxy_url=spec['response_proxy'],
+            headers_func=headers_func, warn_func=logger.warning, log_func=logger.debug, **stub_kwargs
+        )
+    if responder is None:
+        responder = static_response(b'', headers_func, **stub_kwargs)
+    return responder, paths
 
 
 def static_response(body, headers_func, **stub_kwargs):
@@ -183,6 +190,16 @@ def static_response(body, headers_func, **stub_kwargs):
                         **stub_kwargs)
 
 
+def default_response():
+    return static_response(
+        body='',
+        headers_func=build_static_headers_func({
+            'X-Zaglushka-Default-Response': 'true',
+        }),
+        code=httplib.NOT_FOUND
+    )
+
+
 def filebased_response(full_path, headers_func, warn_func=None, **stub_kwargs):
 
     def _body_func(handler, ready_cb):
@@ -194,6 +211,69 @@ def filebased_response(full_path, headers_func, warn_func=None, **stub_kwargs):
             handler.set_header('X-Zaglushka-Failed-Response', 'true')
             return ready_cb()
         send_file(ready_cb, full_path, handler)
+
+    return ResponseStub(headers_func=headers_func,
+                        body_func=_body_func,
+                        **stub_kwargs)
+
+
+def _fetch_request(http_client, request, callback):
+    http_client.fetch(request, callback=callback)  # for easier testing
+
+
+def proxied_response(url, use_regexp, proxy_url, headers_func, warn_func=None, log_func=None, **stub_kwargs):
+    url_regexp = None
+    if use_regexp:
+        try:
+            url_regexp = re.compile(url)
+        except re.error as e:
+            if warn_func is not None:
+                warn_func('Unable to compile url pattern "{}": {}'.format(url, e))
+            return default_response()
+
+    def _body_func(handler, ready_cb):
+        request_url = proxy_url
+        if url_regexp:
+            match = url_regexp.search(handler.request.uri)
+            if match is None:
+                handler.set_header('X-Zaglushka-Failed-Response', 'true')
+                return ready_cb()
+            for i, group in enumerate(match.groups(), start=1):
+                request_url = request_url.replace('${}'.format(i), group)
+
+        http_client = handler.application.settings['http_client']
+        method = handler.request.method
+        if method in ('HEAD', 'BODY') and handler.request.body == '':  # :(
+            body = None
+        else:
+            body = handler.request.body
+        request = HTTPRequest(request_url, method=method, headers=handler.request.headers,
+                              body=body, follow_redirects=False, allow_nonstandard_methods=True)
+
+        def _on_proxied_request_ready(response):
+            if log_func:
+                log_func('Request {r.method} {r.url} complete with code={rc}'.format(r=request, rc=response.code))
+            if response.code == 599:  # special tornado status code
+                handler.set_header('X-Zaglushka-Failed-Response', 'true')
+                if warn_func is not None:
+                    warn_func('Unable to proxy response to "{u}": {e}'.format(u=request_url, e=response.error))
+                ready_cb()
+                return
+            headers_before = deepcopy(handler.get_headers())
+            handler.write(response.body)
+            for header, value in response.headers.iteritems():
+                handler.add_header(header, value)
+            # replace with headers from config if any
+            for header, _ in headers_before.get_all():
+                handler.clear_header(header)
+                for value in headers_before.get_list(header):
+                    handler.add_header(header, value)
+            handler.set_status(response.code)
+            ready_cb()
+
+        if log_func:
+            log_func('Fetch request {r.method} {r.url}'.format(r=request))
+        _fetch_request(http_client, request, callback=_on_proxied_request_ready)
 
     return ResponseStub(headers_func=headers_func,
                         body_func=_body_func,
@@ -351,6 +431,9 @@ class StubHandler(RequestHandler):
     def options(self):
         self.send_stub()
 
+    def get_headers(self):
+        return self._headers
+
     def _make_response_with_rule(self, responder):
         """
         :type responder: ResponseStub
@@ -389,10 +472,12 @@ class StubHandler(RequestHandler):
 
 
 def build_app(zaglushka_config, debug=False):
+    http_client = AsyncHTTPClient()
     return Application(
         handlers=[(r'.*', StubHandler)],
         debug=debug,
-        zaglushka_config=zaglushka_config
+        zaglushka_config=zaglushka_config,
+        http_client=http_client
     )
 
 
