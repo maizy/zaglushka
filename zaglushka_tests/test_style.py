@@ -1,4 +1,4 @@
-# _*_ coding: utf-8 _*_
+# coding: utf-8
 import sys
 from os import path
 import unittest

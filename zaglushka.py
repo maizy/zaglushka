@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# _*_ coding: utf-8 _*_
+# coding: utf-8
 import sys
 import re
 import logging
@@ -9,13 +9,15 @@ import time
 from copy import deepcopy
 from os import path
 from collections import namedtuple
+from itertools import takewhile
 
 from tornado.ioloop import IOLoop
 from tornado.web import Application, RequestHandler, asynchronous, HTTPError
-from tornado.options import define, options
+from tornado.options import define
 from tornado.httpserver import HTTPServer
 from tornado.httputil import HTTPHeaders
 from tornado.httpclient import AsyncHTTPClient, HTTPRequest
+from tornado.log import enable_pretty_logging
 
 logger = logging.getLogger('zaglushka')
 
@@ -369,13 +371,6 @@ def json_minify(data, strip_space=True):
     return ''.join(new_str)
 
 
-def define_options():
-    define('ports', multiple=True, type=int, help='listen ports (one or more)', metavar='PORT[,PORT,...]',
-           default=[8001])
-    define('config', type=str, help='zaglushka config path')
-    define('watch', type=bool, help='watch config and stubs for changes', default=True)
-
-
 def send_file(cb, full_path, handler, chunk_size=1024 * 8, ioloop_=None):
     """
     :type handler: tornado.web.RequestHandler
@@ -490,10 +485,47 @@ def wait_when_config_fixed(config_full_path, exception=None):
     tornado.autoreload.wait()
 
 
-def main(args):
-    define_options()
+def parse_options(args, err_func):
+    define('ports', multiple=True, type=int, help='listen ports (one or more)', metavar='PORT[,PORT,...]',
+           default=[8001])
+    define('config', type=str, help='zaglushka config path')
+    define('watch', type=bool, help='watch config and stubs for changes', default=True)
+
+    from tornado.options import options
     options.logging = 'debug'
-    options.parse_command_line(args=args)
+    enable_pretty_logging(options)
+    script_name = args[0]
+    simple_args = list(takewhile(lambda i: not i.startswith('--'), args[1:]))
+    other_args = args[len(simple_args) + 1:]
+    other_args.insert(0, script_name)
+    if simple_args:
+        if len(simple_args) > 2:
+            err_func('More than two simple args')
+            return None
+        elif len(simple_args) == 2:
+            config, ports = simple_args
+        else:
+            config = simple_args[0]
+            ports = None
+        options.config = config
+        if ports:
+            ports = (i.strip() for i in ports.split(','))
+            try:
+                ports = map(int, ports)
+            except (TypeError, ValueError):
+                err_func('Wrong port value')
+                return None
+            options.ports = ports
+
+    options.logging = 'debug'
+    options.parse_command_line(args=other_args)
+    return options
+
+
+def main(args):
+    options = parse_options(args, err_func=logger.error)
+    if options is None:
+        return 1
     watch = options.watch
     config_full_path = path.abspath(path.expanduser(options.config))
     if not options.config:
@@ -509,6 +541,7 @@ def main(args):
         map(tornado.autoreload.watch, config.watched_files)
     server = HTTPServer(application)
     logger.info('Server started')
+    logger.debug('Config: %s', config_full_path)
     for port in options.ports:
         logger.info('Listen for 0.0.0.0:{}'.format(port))
         server.listen(port, '0.0.0.0')

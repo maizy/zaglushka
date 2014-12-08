@@ -1,4 +1,4 @@
-# _*_ coding: utf-8 _*_
+# coding: utf-8
 from os import path
 from logging import NullHandler
 

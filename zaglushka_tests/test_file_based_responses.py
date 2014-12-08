@@ -1,4 +1,4 @@
-# _*_ coding: utf-8 _*_
+# coding: utf-8
 from os import path
 
 from zaglushka_tests import ZaglushkaAsyncHTTPTestCase, EXAMPLES_DIR, read_example
