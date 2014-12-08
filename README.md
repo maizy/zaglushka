@@ -6,11 +6,20 @@ For use only in dev or testing environments.
 
 ## Usage
 
-`zaglushka.py --ports=8001,8002 --config=path/to/config.json`
+`zaglushka.py [path/to/config.json] [port1,port2,...] [--other_options]`
 
 If you want to bind ports <= 1024 use `sudo`.
 
-See sample config definition [bellow](#use_cases).
+### All options
+
+* `zaglushka.py path/to/config.json` or `--config=path/to/config.json` – stubs config path.
+  See sample config definition [bellow](#use_cases)
+
+* `zaglushka.py config.json 5000,5001` or `--ports=5000,5001` – bind ports
+
+* `--watch=false` – don't watch config and stubs for changes (true by default).
+
+* `--help` – display help for all available options.
 
 ## Requirements
 
@@ -56,7 +65,7 @@ python setup.py install
 ```
 
 ```bash
-zaglushka.py --ports=5000,5001,5002 --config=config.json
+zaglushka.py config.json 5000
 ```
 
 ```
