@@ -527,10 +527,10 @@ def main(args):
     if options is None:
         return 1
     watch = options.watch
-    config_full_path = path.abspath(path.expanduser(options.config))
     if not options.config:
         logger.error('--config param is required')
         return 1
+    config_full_path = path.abspath(path.expanduser(options.config))
     try:
         config = Config.from_console_argument(config_full_path)
     except Exception as e:
