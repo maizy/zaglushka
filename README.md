@@ -1,6 +1,6 @@
 # Zaglushka
 
-Simple python http server for API stubs.
+Http server for stubing backends and emulate some errors.
 
 For use only in dev or testing environments.
 
@@ -158,6 +158,5 @@ Server watched for any changes in stub files or config and reload automatically.
 
 ## Issues
 
-* [issues for v0.1](https://github.com/maizy/zaglushka/issues?q=is%3Aopen+is%3Aissue+milestone%3A0.1)
-* [post v0.1 issues](https://github.com/maizy/zaglushka/issues?q=is%3Aopen+is%3Aissue+no%3Amilestone)
+* [issues](https://github.com/maizy/zaglushka/issues?q=is%3Aopen+is%3Aissue+no%3Amilestone)
 * [submit you own ideas or bugs](https://github.com/maizy/zaglushka/issues/new)
