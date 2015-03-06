@@ -155,28 +155,37 @@ def choose_responder(spec, base_stubs_path):
     code = int(spec.get('code', httplib.OK))
     delay = float(spec['delay']) if 'delay' in spec else None
     stub_kwargs = {'code': code, 'delay': delay}
-    headers_func, paths = choose_headers_func(spec, base_stubs_path)
+
     responder = None
     if 'response' in spec:
         body = spec['response']
+        headers_func, paths = choose_headers_func(spec, base_stubs_path)
         if not isinstance(body, basestring):
             body = json.dumps(body, ensure_ascii=False, encoding=unicode)
         responder = static_response(body, headers_func, **stub_kwargs)
     elif 'response_file' in spec:
         full_path = path.normpath(path.join(base_stubs_path, spec['response_file']))
+        headers_func, paths = choose_headers_func(spec, base_stubs_path)
         paths.add(full_path)
         responder = filebased_response(full_path, headers_func, warn_func=logger.warning, **stub_kwargs)
     elif 'response_proxy' in spec and 'path' in spec:
+        headers_func, paths = choose_headers_func(spec, base_stubs_path)
         responder = proxied_response(
             url=spec['path'], use_regexp=False, proxy_url=spec['response_proxy'],
             headers_func=headers_func, warn_func=logger.warn, log_func=logger.debug, **stub_kwargs
         )
     elif 'response_proxy' in spec and 'path_regexp' in spec:
+        headers_func, paths = choose_headers_func(
+            spec,
+            base_stubs_path,
+            is_blacklisted_func=lambda h: h in ('Transfer-Encoding', )
+        )
         responder = proxied_response(
             url=spec['path_regexp'], use_regexp=True, proxy_url=spec['response_proxy'],
             headers_func=headers_func, warn_func=logger.warning, log_func=logger.debug, **stub_kwargs
         )
     if responder is None:
+        headers_func, paths = choose_headers_func(spec, base_stubs_path)
         responder = static_response(b'', headers_func, **stub_kwargs)
     return responder, paths
 
@@ -282,22 +291,24 @@ def proxied_response(url, use_regexp, proxy_url, headers_func, warn_func=None, l
                         **stub_kwargs)
 
 
-def choose_headers_func(spec, base_stubs_path):
+def choose_headers_func(spec, base_stubs_path, is_blacklisted_func=None):
     paths = set()
     if 'headers' in spec:
-        return build_static_headers_func(spec['headers']), paths
+        return build_static_headers_func(spec['headers'], is_blacklisted_func), paths
     elif 'headers_file' in spec:
         stub_path = _get_stub_file_path(base_stubs_path, spec['headers_file'])
         paths.add(stub_path)
-        return build_filebased_headers_func(stub_path, warn_func=logger.warning), paths
+        return build_filebased_headers_func(stub_path, is_blacklisted_func, warn_func=logger.warning), paths
     else:
-        return build_static_headers_func({}), paths
+        return build_static_headers_func({}, is_blacklisted_func), paths
 
 
-def build_static_headers_func(headers):
+def build_static_headers_func(headers, is_blacklisted_func=None):
 
     def _static_headers_func(handler):
         for header, values in headers.iteritems():
+            if is_blacklisted_func is not None and is_blacklisted_func(header.lower()):
+                continue
             if not isinstance(values, (list, tuple, set, frozenset)):
                 values = [values]
             for value in values:
@@ -306,8 +317,7 @@ def build_static_headers_func(headers):
     return _static_headers_func
 
 
-def build_filebased_headers_func(full_path, warn_func=None):
-
+def build_filebased_headers_func(full_path, is_blacklisted_func=None, warn_func=None):
     def _filebased_headers_func(handler):
         if not path.isfile(full_path):
             if warn_func is not None:
@@ -316,6 +326,8 @@ def build_filebased_headers_func(full_path, warn_func=None):
             handler.add_header('X-Zaglushka-Failed-Headers', 'true')
             return
         for header, value in HTTPHeaders.parse(open(full_path, 'r').read()).get_all():
+            if is_blacklisted_func is not None and is_blacklisted_func(handler.lower()):
+                continue
             handler.add_header(header, value)
 
     return _filebased_headers_func
