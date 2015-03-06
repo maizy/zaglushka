@@ -264,6 +264,8 @@ def proxied_response(url, use_regexp, proxy_url, headers_func, warn_func=None, l
             headers_before = deepcopy(handler.get_headers())
             handler.write(response.body)
             for header, value in response.headers.iteritems():
+                if header in ('Transfer-Encoding', ):
+                    continue
                 handler.add_header(header, value)
             # replace with headers from config if any
             for header, _ in headers_before.get_all():
