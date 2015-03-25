@@ -62,6 +62,7 @@ python setup.py install
             }
         }
     ]
+}
 ```
 
 ```bash
