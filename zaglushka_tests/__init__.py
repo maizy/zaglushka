@@ -67,6 +67,7 @@ class ZaglushkaAsyncHTTPTestCase(AsyncHTTPTestCase):
 
     def assertResponseHeaders(self, expected_headers, response):
         real_headers = {key.lower(): value for key, value in response.headers.iteritems()}
+        real_headers.pop('connection', None)
         expected_headers = {key.lower(): value for key, value in expected_headers.iteritems()}
         expected_headers['content-length'] = str(len(response.body))
         self.assertEqual(expected_headers, real_headers)
