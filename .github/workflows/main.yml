@@ -1,0 +1,40 @@
+name: zaglushka
+
+on:
+  push:
+  schedule:
+    - cron:  '* * */7 * *'
+
+jobs:
+  build:
+
+    runs-on: '${{ matrix.os }}'
+    strategy:
+      max-parallel: 4
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - macOS-latest
+        python-version:
+          - 2.7
+        tornado-version:
+          - '>=3.2,<4'
+          - '>=4,<5'
+          - '>=5,<6'
+
+    steps:
+    - uses: actions/checkout@v1
+    - name: 'Set up Python ${{ matrix.python-version }}'
+      uses: actions/setup-python@v1
+      with:
+        python-version: '${{ matrix.python-version }}'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pep8 coverage
+        pip install "tornado${{ matrix.tornado-version }}"
+      timeout-minutes: 10
+    - name: Run tests
+      run: coverage run --source=zaglushka setup.py test
+      timeout-minutes: 5
