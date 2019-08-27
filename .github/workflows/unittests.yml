@@ -1,4 +1,4 @@
-name: zaglushka
+name: unit tests
 
 on:
   push:
@@ -36,5 +36,15 @@ jobs:
         pip install "tornado${{ matrix.tornado-version }}"
       timeout-minutes: 10
     - name: Run tests
-      run: coverage run --source=zaglushka setup.py test
+      run: |
+        coverage run --source=zaglushka setup.py test
+        coverage report
+        coverage xml
       timeout-minutes: 5
+    - name: Upload coverage to codecov
+      if: matrix.os == 'ubuntu-latest' && matrix.tornado-version == '>=5,<6'
+      uses: codecov/codecov-action@v1.0.2
+      with:
+        token: ${{secrets.CODECOV_TOKEN}}
+        file: ./coverage.xml
+        flags: 'unittest'

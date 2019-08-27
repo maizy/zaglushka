@@ -40,11 +40,10 @@ python setup.py install
 
 ## CI status
 
-[![Travis CI, Build Status, master branch](https://travis-ci.org/maizy/zaglushka.svg?branch=master)](https://travis-ci.org/maizy/zaglushka)
-[![Coveralls, Coverage Statusm master branch](https://img.shields.io/coveralls/maizy/zaglushka.svg)](https://coveralls.io/r/maizy/zaglushka?branch=master)
+[![codecov](https://codecov.io/gh/maizy/zaglushka/branch/master/graph/badge.svg)](https://codecov.io/gh/maizy/zaglushka)
 
+<a name="use_cases"></a>
 
-<a name="use_cases"/>
 ## Some use cases
 
 ### Simple error stub for any request url
