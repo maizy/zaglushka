@@ -3,7 +3,7 @@ name: unit tests
 on:
   push:
   schedule:
-    - cron:  '* * */7 * *'
+    - cron:  '0 10 */7 * *'
 
 jobs:
   build:
