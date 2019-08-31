@@ -41,6 +41,7 @@ python setup.py install
 ## CI status
 
 [![codecov](https://codecov.io/gh/maizy/zaglushka/branch/master/graph/badge.svg)](https://codecov.io/gh/maizy/zaglushka)
+[![unittests status](https://github.com/maizy/zaglushka/workflows/unit%20tests/badge.svg)](https://github.com/maizy/zaglushka/actions)
 
 <a name="use_cases"></a>
 
