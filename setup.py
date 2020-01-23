@@ -5,9 +5,7 @@ _version = '0.0.7'
 setup(
     name='zaglushka',
     version=_version,
-    install_requires=['tornado>=3.2'],
-    tests_require=['nose>=1.3', 'pep8>=1.3'],
-    test_suite='nose.collector',
+    install_requires=['tornado>=3.2,<6.0'],
     scripts=['zaglushka.py'],
     exclude=['zaglushka_tests/*'],
     author='Nikita Kovaliov',

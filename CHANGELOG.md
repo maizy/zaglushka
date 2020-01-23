@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.0 (?)
+
+- support python 3.5+ - iss #17
+- drop python 2 support - iss #17
+
 ## 0.0.7 (2014-12-12)
 
 - testing various tornado versions - iss #25

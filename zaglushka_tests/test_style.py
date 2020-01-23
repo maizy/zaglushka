@@ -3,7 +3,7 @@ import sys
 from os import path
 import unittest
 
-import pep8
+import pycodestyle
 
 from zaglushka_tests import PROJECT_ROOT
 
@@ -15,7 +15,7 @@ _src_dirs = [path.join(PROJECT_ROOT, 'zaglushka.py'),
 class StyleTestCase(unittest.TestCase):
 
     def test_pep8(self):
-        pep8style = pep8.StyleGuide(
+        pep8style = pycodestyle.StyleGuide(
             show_pep8=False,
             show_source=True,
             repeat=True,
