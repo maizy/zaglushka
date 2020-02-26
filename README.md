@@ -23,8 +23,8 @@ If you want to bind ports <= 1024 use `sudo`.
 
 ## Requirements
 
-* python 3.2+
-* tornado 3.2 - 5.1
+* python 3.5+
+* tornado 5.1 - 6
 
 ## Installation
 
