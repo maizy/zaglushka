@@ -1,9 +1,9 @@
 # coding: utf-8
 import time
-import httplib
+from http import HTTPStatus
 from os import path
 import socket
-from StringIO import StringIO
+from io import StringIO
 from functools import partial
 
 from tornado.httpclient import HTTPResponse
@@ -55,7 +55,7 @@ class ProxiedResponseTestCase(ZaglushkaAsyncHTTPTestCase):
                     'response_proxy': 'http://example.com/path.json',
                 },
                 {
-                    'path_regexp': '^/re_proxy/(\d+)/(\w+).json$',
+                    'path_regexp': r'^/re_proxy/(\d+)/(\w+).json$',
                     'response_proxy': 'http://re.example.com/resource/$2/$1/$1.js',
                 },
                 {
@@ -90,25 +90,25 @@ class ProxiedResponseTestCase(ZaglushkaAsyncHTTPTestCase):
         self.assertFetchUrl('http://example.com/path.json')
 
     def test_delayed_response(self):
-        self.stub_response(code=httplib.NOT_FOUND, buffer=StringIO(':('))
+        self.stub_response(code=HTTPStatus.NOT_FOUND, buffer=StringIO(':('))
         start = time.time()
         response = self.fetch('/delayed_proxy', method='PUT', body='')
         end = time.time()
         self.assertFetchCalled()
         self.assertResponseBody(':(', response)
-        self.assertEqual(response.code, httplib.NOT_FOUND)
+        self.assertEqual(response.code, HTTPStatus.NOT_FOUND)
         self.assertGreaterEqual(end - start, 0.5)
 
     def test_regexp_proxy(self):
-        self.stub_response(code=httplib.OK, buffer=StringIO('yup'))
+        self.stub_response(code=HTTPStatus.OK, buffer=StringIO('yup'))
         response = self.fetch('/re_proxy/12345/abcd.json')
         self.assertFetchCalled()
         self.assertResponseBody('yup', response)
-        self.assertEqual(response.code, httplib.OK)
+        self.assertEqual(response.code, HTTPStatus.OK)
         self.assertFetchUrl('http://re.example.com/resource/abcd/12345/12345.js')
 
     def test_hardcoded_headers_overwrite(self):
-        self.stub_response(code=httplib.OK, buffer=StringIO('over'), headers={'Unique': '1234', 'Overwrite': 'no'})
+        self.stub_response(code=HTTPStatus.OK, buffer=StringIO('over'), headers={'Unique': '1234', 'Overwrite': 'no'})
         response = self.fetch('/re_proxy2/ab/cd.html')
         self.assertFetchCalled()
         self.assertResponseBody('over', response)
@@ -122,7 +122,11 @@ class ProxiedResponseTestCase(ZaglushkaAsyncHTTPTestCase):
         self.assertFetchUrl('http://re2.example.com/resource/ab/cd.html.js')
 
     def test_filebased_headers_overwrite(self):
-        self.stub_response(code=httplib.OK, buffer=StringIO(''), headers={'X-GITHUB-REQUEST-ID': 'abc', 'X-ID': '123'})
+        self.stub_response(
+            code=HTTPStatus.OK,
+            buffer=StringIO(''),
+            headers={'X-GITHUB-REQUEST-ID': 'abc', 'X-ID': '123'}
+        )
         response = self.fetch('/fixed_proxy2')
         self.assertFetchCalled()
         self.assertResponseBody('', response)

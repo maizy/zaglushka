@@ -1,10 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 # coding: utf-8
 import sys
 import re
 import logging
 import json
-import httplib
+from http import HTTPStatus
 import time
 from copy import deepcopy
 from os import path
@@ -12,7 +12,7 @@ from collections import namedtuple
 from itertools import takewhile
 
 from tornado.ioloop import IOLoop
-from tornado.web import Application, RequestHandler, asynchronous, HTTPError
+from tornado.web import Application, RequestHandler, HTTPError
 from tornado.options import define
 from tornado.httpserver import HTTPServer
 from tornado.httputil import HTTPHeaders
@@ -44,7 +44,7 @@ class Config(object):
         if not path.exists(config_full_path):
             logger.error('Config not found at {}'.format(config_full_path))
             raise Exception('config not found')
-        with open(config_full_path, 'rb') as config_fp:
+        with open(config_full_path) as config_fp:
             cleaned = json_minify(config_fp.read())
         try:
             raw_config = json.loads(cleaned, encoding='utf-8')
@@ -70,7 +70,7 @@ class Config(object):
                 self.watched_files.update(responder_paths)
                 rules.append(Rule(matcher, responder))
             else:
-                logger.warn('Unable to build matcher from url spec #{}, skipping'.format(num))
+                logger.warning('Unable to build matcher from url spec #{}, skipping'.format(num))
         rules.append(Rule(always_match, default_response()))
         self.rules = rules
         self.stubs_base_path = stubs_base_path
@@ -94,11 +94,11 @@ def choose_matcher(spec):
 def _is_args_matched(real_args, required, other_allowed=True):
     def _spec2list(dict_):
         res = []
-        for arg, val in dict_.iteritems():
+        for arg, val in dict_.items():
             if isinstance(val, (list, set, tuple)):
-                res.extend((unicode(arg), unicode(v)) for v in val)
+                res.extend((str(arg), str(v)) for v in val)
             else:
-                res.append((unicode(arg), unicode(val)))
+                res.append((str(arg), str(val)))
         return res
 
     required = _spec2list(required)
@@ -152,15 +152,15 @@ def always_match(*_, **__):
 
 
 def choose_responder(spec, base_stubs_path):
-    code = int(spec.get('code', httplib.OK))
+    code = int(spec.get('code', HTTPStatus.OK))
     delay = float(spec['delay']) if 'delay' in spec else None
     stub_kwargs = {'code': code, 'delay': delay}
     headers_func, paths = choose_headers_func(spec, base_stubs_path)
     responder = None
     if 'response' in spec:
         body = spec['response']
-        if not isinstance(body, basestring):
-            body = json.dumps(body, ensure_ascii=False, encoding=unicode)
+        if not isinstance(body, (str, bytes)):
+            body = json.dumps(body, ensure_ascii=False)
         responder = static_response(body, headers_func, **stub_kwargs)
     elif 'response_file' in spec:
         full_path = path.normpath(path.join(base_stubs_path, spec['response_file']))
@@ -198,7 +198,7 @@ def default_response():
         headers_func=build_static_headers_func({
             'X-Zaglushka-Default-Response': 'true',
         }),
-        code=httplib.NOT_FOUND
+        code=HTTPStatus.NOT_FOUND
     )
 
 
@@ -263,9 +263,9 @@ def proxied_response(url, use_regexp, proxy_url, headers_func, warn_func=None, l
                 return
             headers_before = deepcopy(handler.get_headers())
             handler.write(response.body)
-            for header, value in response.headers.iteritems():
+            for header, value in response.headers.items():
                 handler.add_header(header, value)
-            # replace with headers from config if any
+            # replace with headers from a config if any
             for header, _ in headers_before.get_all():
                 handler.clear_header(header)
                 for value in headers_before.get_list(header):
@@ -297,7 +297,7 @@ def choose_headers_func(spec, base_stubs_path):
 def build_static_headers_func(headers):
 
     def _static_headers_func(handler):
-        for header, values in headers.iteritems():
+        for header, values in headers.items():
             if not isinstance(values, (list, tuple, set, frozenset)):
                 values = [values]
             for value in values:
@@ -329,7 +329,7 @@ def json_minify(data, strip_space=True):
     Based on JSON.minify.js:
     https://github.com/getify/JSON.minify
     """
-    tokenizer = re.compile('"|(/\*)|(\*/)|(//)|\n|\r')
+    tokenizer = re.compile(r'"|(/\*)|(\*/)|(//)|\n|\r')
     in_string = False
     in_multiline_comment = False
     in_singleline_comment = False
@@ -365,7 +365,7 @@ def json_minify(data, strip_space=True):
             in_singleline_comment = False
         elif (not in_multiline_comment and not in_singleline_comment and
               (match.group() not in ['\n', '\r', ' ', '\t'] or not strip_space)):
-                new_str.append(match.group())
+            new_str.append(match.group())
 
     new_str.append(data[from_index:])
     return ''.join(new_str)
@@ -398,33 +398,26 @@ def send_file(cb, full_path, handler, chunk_size=1024 * 8, ioloop_=None):
 
 class StubHandler(RequestHandler):
 
-    @asynchronous
-    def get(self):
-        self.send_stub()
+    async def get(self):
+        return self.send_stub()
 
-    @asynchronous
-    def post(self):
-        self.send_stub()
+    async def post(self):
+        return self.send_stub()
 
-    @asynchronous
-    def put(self):
-        self.send_stub()
+    async def put(self):
+        return self.send_stub()
 
-    @asynchronous
-    def delete(self):
-        self.send_stub()
+    async def delete(self):
+        return self.send_stub()
 
-    @asynchronous
-    def patch(self):
-        self.send_stub()
+    async def patch(self):
+        return self.send_stub()
 
-    @asynchronous
-    def head(self):
-        self.send_stub()
+    async def head(self):
+        return self.send_stub()
 
-    @asynchronous
-    def options(self):
-        self.send_stub()
+    async def options(self):
+        return self.send_stub()
 
     def get_headers(self):
         return self._headers
@@ -460,7 +453,7 @@ class StubHandler(RequestHandler):
                 matched = True
                 break
         if not matched:
-            raise HTTPError(httplib.INTERNAL_SERVER_ERROR)
+            raise HTTPError(HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def compute_etag(self):
         return None
@@ -511,7 +504,7 @@ def parse_options(args, err_func):
         if ports:
             ports = (i.strip() for i in ports.split(','))
             try:
-                ports = map(int, ports)
+                ports = list(map(int, ports))
             except (TypeError, ValueError):
                 err_func('Wrong port value')
                 return None
@@ -550,6 +543,7 @@ def main(args):
     except KeyboardInterrupt:
         logger.info('Server stopped')
         return 0
+
 
 if __name__ == "__main__":
     sys.exit(main(sys.argv))

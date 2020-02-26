@@ -93,8 +93,9 @@ class TestWrongRegexpTestCase(ZaglushkaAsyncHTTPTestCase):
         config = self.get_config_object()
         self.assertEqual(len(config.rules), 1)  # only default rule
         self.assertInLogRecords(
-            message='Unable to compile regexp "^wrong_regexp[": unexpected end of regular expression',
-            logger_name='zaglushka')
+            message='Unable to compile regexp "^wrong_regexp["',
+            logger_name='zaglushka',
+            strict_match=False)
         self.assertInLogRecords(
             message='Unable to build matcher from url spec #0, skipping',
             logger_name='zaglushka')

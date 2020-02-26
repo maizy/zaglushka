@@ -57,7 +57,7 @@ class ZaglushkaAsyncHTTPTestCase(AsyncHTTPTestCase):
 
     def assertResponseBody(self, expected_body, response, msg=''):
         msg = ': {}'.format(msg) if msg else ''
-        expected_body = expected_body.encode('utf-8') if isinstance(expected_body, unicode) else expected_body
+        expected_body = expected_body.encode('utf-8') if isinstance(expected_body, str) else expected_body
         self.assertEqual(expected_body, response.body, 'Body not matched {!r}!={!r} {}'
                          .format(expected_body, response.body, msg))
         real_len = int(response.headers['Content-Length'])
@@ -66,9 +66,9 @@ class ZaglushkaAsyncHTTPTestCase(AsyncHTTPTestCase):
                          'Body length not matched: {} != {}{}'.format(real_len, expected_len, msg))
 
     def assertResponseHeaders(self, expected_headers, response):
-        real_headers = {key.lower(): value for key, value in response.headers.iteritems()}
+        real_headers = {key.lower(): value for key, value in response.headers.items()}
         real_headers.pop('connection', None)
-        expected_headers = {key.lower(): value for key, value in expected_headers.iteritems()}
+        expected_headers = {key.lower(): value for key, value in expected_headers.items()}
         expected_headers['content-length'] = str(len(response.body))
         self.assertEqual(expected_headers, real_headers)
 
@@ -77,22 +77,26 @@ class ZaglushkaAsyncHTTPTestCase(AsyncHTTPTestCase):
         self.assertResponseBody('', response)
         self.assertEqual(response.headers['X-Zaglushka-Default-Response'], 'true')
 
-    def _search_first_log_record(self, logger_name, message):
+    def _search_first_log_record(self, logger_name, message, strict_match=True):
         result = None
         for rec in self.get_app_logs():
-            if rec.msg == message and (logger_name is None or rec.name == logger_name):
+            if strict_match:
+                message_match = rec.msg == message
+            else:
+                message_match = message in rec.msg
+            if message_match and (logger_name is None or rec.name == logger_name):
                 result = rec
                 break
         return result
 
-    def assertInLogRecords(self, message, logger_name=None):
-        rec = self._search_first_log_record(logger_name, message)
+    def assertInLogRecords(self, message, logger_name=None, strict_match=True):
+        rec = self._search_first_log_record(logger_name, message, strict_match)
         if rec is None:
             self.fail('Unable to find log record with message: "{}" and name: "{}"'
                       .format(message, logger_name))
 
-    def assertNotInLogRecords(self, message, logger_name=None):
-        rec = self._search_first_log_record(logger_name, message)
+    def assertNotInLogRecords(self, message, logger_name=None, strict_match=True):
+        rec = self._search_first_log_record(logger_name, message, strict_match)
         if rec is not None:
             self.fail('Log record with message: "{}" and name: "{}" found'
                       .format(message, logger_name))
