@@ -45,7 +45,7 @@ jobs:
         coverage xml
       timeout-minutes: 5
     - name: Upload coverage to codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.tornado-version == '>=5.1,<6'
+      if: matrix.os == 'ubuntu-latest' && matrix.tornado-version == '>=5.1,<6' && matrix.python-version == '3.7'
       uses: codecov/codecov-action@v1.0.2
       with:
         token: ${{secrets.CODECOV_TOKEN}}
