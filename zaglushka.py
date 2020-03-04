@@ -4,8 +4,8 @@ import sys
 import re
 import logging
 import json
+import asyncio
 from http import HTTPStatus
-import time
 from copy import deepcopy
 from os import path
 from collections import namedtuple
@@ -22,7 +22,7 @@ from tornado.log import enable_pretty_logging
 logger = logging.getLogger('zaglushka')
 
 
-class ResponseStub(namedtuple('_ResponseStub', ['code', 'headers_func', 'body_func', 'delay'])):
+class ResponseStub(namedtuple('_ResponseStub', ['code', 'headers_func', 'body_coroutine', 'delay'])):
     def __new__(cls, **kwargs):
         data = {k: None for k in cls._fields}
         data.update(kwargs)
@@ -183,12 +183,11 @@ def choose_responder(spec, base_stubs_path):
 
 def static_response(body, headers_func, **stub_kwargs):
 
-    def _body_func(handler, ready_cb):
+    async def _body_coroutine(handler):
         handler.write(body)
-        ready_cb()
 
     return ResponseStub(headers_func=headers_func,
-                        body_func=_body_func,
+                        body_coroutine=_body_coroutine,
                         **stub_kwargs)
 
 
@@ -204,23 +203,23 @@ def default_response():
 
 def filebased_response(full_path, headers_func, warn_func=None, **stub_kwargs):
 
-    def _body_func(handler, ready_cb):
-        # detect file at every request, so you can add it where ever you want
+    async def _body_coroutine(handler):
+        # detect a file at every request, so you can add it where ever you want
         if not path.isfile(full_path):
             if warn_func is not None:
                 warn_func('Unable to find stubs file "{f}" for {m} {url}'
                           .format(f=full_path, m=handler.request.method, url=handler.request.uri))
             handler.set_header('X-Zaglushka-Failed-Response', 'true')
-            return ready_cb()
-        send_file(ready_cb, full_path, handler)
+            return
+        await send_file(full_path, handler)
 
     return ResponseStub(headers_func=headers_func,
-                        body_func=_body_func,
+                        body_coroutine=_body_coroutine,
                         **stub_kwargs)
 
 
-def _fetch_request(http_client, request, callback):
-    http_client.fetch(request, callback=callback)  # for easier testing
+async def _fetch_request(http_client, request):
+    return http_client.fetch(request)  # for easier testing
 
 
 def proxied_response(url, use_regexp, proxy_url, headers_func, warn_func=None, log_func=None, **stub_kwargs):
@@ -233,13 +232,13 @@ def proxied_response(url, use_regexp, proxy_url, headers_func, warn_func=None, l
                 warn_func('Unable to compile url pattern "{}": {}'.format(url, e))
             return default_response()
 
-    def _body_func(handler, ready_cb):
+    async def _body_coroutine(handler):
         request_url = proxy_url
         if url_regexp:
             match = url_regexp.search(handler.request.uri)
             if match is None:
                 handler.set_header('X-Zaglushka-Failed-Response', 'true')
-                return ready_cb()
+                return
             for i, group in enumerate(match.groups(), start=1):
                 request_url = request_url.replace('${}'.format(i), group)
 
@@ -252,33 +251,31 @@ def proxied_response(url, use_regexp, proxy_url, headers_func, warn_func=None, l
         request = HTTPRequest(request_url, method=method, headers=handler.request.headers,
                               body=body, follow_redirects=False, allow_nonstandard_methods=True)
 
-        def _on_proxied_request_ready(response):
-            if log_func:
-                log_func('Request {r.method} {r.url} complete with code={rc}'.format(r=request, rc=response.code))
-            if response.code == 599:  # special tornado status code
-                handler.set_header('X-Zaglushka-Failed-Response', 'true')
-                if warn_func is not None:
-                    warn_func('Unable to proxy response to "{u}": {e}'.format(u=request_url, e=response.error))
-                ready_cb()
-                return
-            headers_before = deepcopy(handler.get_headers())
-            handler.write(response.body)
-            for header, value in response.headers.items():
-                handler.add_header(header, value)
-            # replace with headers from a config if any
-            for header, _ in headers_before.get_all():
-                handler.clear_header(header)
-                for value in headers_before.get_list(header):
-                    handler.add_header(header, value)
-            handler.set_status(response.code)
-            ready_cb()
-
         if log_func:
             log_func('Fetch request {r.method} {r.url}'.format(r=request))
-        _fetch_request(http_client, request, callback=_on_proxied_request_ready)
+        response = await _fetch_request(http_client, request)
+
+        if log_func:
+            log_func('Request {r.method} {r.url} complete with code={rc}'.format(r=request, rc=response.code))
+        if response.code == 599:  # special tornado status code
+            handler.set_header('X-Zaglushka-Failed-Response', 'true')
+            if warn_func is not None:
+                warn_func('Unable to proxy response to "{u}": {e}'.format(u=request_url, e=response.error))
+            return
+        headers_before = deepcopy(handler.get_headers())
+        handler.write(response.body)
+        for header, value in response.headers.items():
+            handler.add_header(header, value)
+        # replace with headers from a config if any
+        for header, _ in headers_before.get_all():
+            handler.clear_header(header)
+            for value in headers_before.get_list(header):
+                handler.add_header(header, value)
+        handler.set_status(response.code)
+        return
 
     return ResponseStub(headers_func=headers_func,
-                        body_func=_body_func,
+                        body_coroutine=_body_coroutine,
                         **stub_kwargs)
 
 
@@ -371,77 +368,61 @@ def json_minify(data, strip_space=True):
     return ''.join(new_str)
 
 
-def send_file(cb, full_path, handler, chunk_size=1024 * 8, ioloop_=None):
-    """
-    :type handler: tornado.web.RequestHandler
-
-    todo: async read (currently blocked, chunked output just a fiction)
-    """
-    ioloop_ = ioloop_ if ioloop_ is not None else IOLoop.current()
+async def send_file(full_path, handler: RequestHandler, chunk_size=1024 * 8):
     fd = open(full_path, 'rb')  # TODO: check exceptions
 
-    def send_chunk():
+    while True:
         try:
             data = fd.read(chunk_size)
         except (IOError, OSError):
             data = None
 
-        if data is not None and data != '':
+        if data is not None and len(data) > 0:
             handler.write(data)
-            ioloop_.add_timeout(0.1, send_chunk)
+            await handler.flush()
         else:
             fd.close()
-            cb()
-
-    send_chunk()
+            break
 
 
 class StubHandler(RequestHandler):
 
     async def get(self):
-        return self.send_stub()
+        await self.send_stub()
 
     async def post(self):
-        return self.send_stub()
+        await self.send_stub()
 
     async def put(self):
-        return self.send_stub()
+        await self.send_stub()
 
     async def delete(self):
-        return self.send_stub()
+        await self.send_stub()
 
     async def patch(self):
-        return self.send_stub()
+        await self.send_stub()
 
     async def head(self):
-        return self.send_stub()
+        await self.send_stub()
 
     async def options(self):
-        return self.send_stub()
+        await self.send_stub()
 
     def get_headers(self):
         return self._headers
 
-    def _make_response_with_rule(self, responder):
-        """
-        :type responder: ResponseStub
-        """
-        ioloop = IOLoop.current()
-        if responder.delay is None:
-            finish_cb = self.finish
-        else:
-            def finish_cb():
-                timeout = time.time() + responder.delay
-                logger.debug('Delay response for {m} {u} by {sec:.3f} sec'.format(m=self.request.method,
-                                                                                  u=self.request.uri,
-                                                                                  sec=responder.delay))
-                ioloop.add_timeout(timeout, self.finish)
+    async def _make_response_with_rule(self, responder: ResponseStub):
+        if responder.delay is not None:
+            logger.debug('Delay response for {m} {u} by {sec:.3f} sec'.format(m=self.request.method,
+                                                                              u=self.request.uri,
+                                                                              sec=responder.delay))
+            await asyncio.sleep(responder.delay)
 
         self.set_status(responder.code)
         responder.headers_func(self)
-        responder.body_func(self, finish_cb)
+        await responder.body_coroutine(self)
 
-    def send_stub(self):
+    async def send_stub(self):
         self.clear_header('Server')
         self.clear_header('Content-Type')
         self.clear_header('Date')
@@ -449,7 +430,7 @@ class StubHandler(RequestHandler):
         matched = False
         for rule in config.rules:
             if rule.matcher(self.request):
-                self._make_response_with_rule(rule.responder)
+                await self._make_response_with_rule(rule.responder)
                 matched = True
                 break
         if not matched:

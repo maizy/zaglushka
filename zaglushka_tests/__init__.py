@@ -60,10 +60,12 @@ class ZaglushkaAsyncHTTPTestCase(AsyncHTTPTestCase):
         expected_body = expected_body.encode('utf-8') if isinstance(expected_body, str) else expected_body
         self.assertEqual(expected_body, response.body, 'Body not matched {!r}!={!r} {}'
                          .format(expected_body, response.body, msg))
-        real_len = int(response.headers['Content-Length'])
-        expected_len = len(expected_body)
-        self.assertEqual(expected_len, real_len,
-                         'Body length not matched: {} != {}{}'.format(real_len, expected_len, msg))
+        is_chunked = response.headers.get('Transfer-Encoding') == 'chunked'
+        if not is_chunked:
+            real_len = int(response.headers['Content-Length']) if 'Content-Length' in response.headers else None
+            expected_len = len(expected_body)
+            self.assertEqual(expected_len, real_len,
+                             'Body length not matched: {} != {}{}'.format(real_len, expected_len, msg))
 
     def assertResponseHeaders(self, expected_headers, response):
         real_headers = {key.lower(): value for key, value in response.headers.items()}

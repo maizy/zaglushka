@@ -1,10 +1,10 @@
 # coding: utf-8
 import time
+import asyncio
 from http import HTTPStatus
 from os import path
 import socket
 from io import StringIO
-from functools import partial
 
 from tornado.httpclient import HTTPResponse
 
@@ -27,11 +27,13 @@ class ProxiedResponseTestCase(ZaglushkaAsyncHTTPTestCase):
         self._fetch_called = False
         self._fetch_request = None
 
-        def _fetch_stub(http_client, request, callback):
+        async def _fetch_stub(http_client, request):
             response = HTTPResponse(request=request, code=code, **response_args)
             self._fetch_request = request
             self._fetch_called = True
-            self.io_loop.add_timeout(time.time() + emulated_delay, partial(callback, response))
+
+            await asyncio.sleep(emulated_delay)
+            return response
 
         zaglushka._fetch_request = _fetch_stub
 
