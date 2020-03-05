@@ -91,14 +91,30 @@ def choose_matcher(spec):
         return None
 
 
+def _to_str(value, fallback=False):
+    if isinstance(value, str):
+        return value
+    elif isinstance(value, bytes):
+        if fallback:
+            try:
+                return value.decode('utf-8')
+            except UnicodeDecodeError:
+                return chr(0xFFFD)
+        else:
+            return value.decode('utf-8')
+    else:
+        return str(value)
+
+
 def _is_args_matched(real_args, required, other_allowed=True):
+
     def _spec2list(dict_):
         res = []
         for arg, val in dict_.items():
             if isinstance(val, (list, set, tuple)):
-                res.extend((str(arg), str(v)) for v in val)
+                res.extend((_to_str(arg), _to_str(v)) for v in val)
             else:
-                res.append((str(arg), str(val)))
+                res.append((_to_str(arg), _to_str(val)))
         return res
 
     required = _spec2list(required)
@@ -125,7 +141,11 @@ def _is_args_matched(real_args, required, other_allowed=True):
 def build_simple_query_args_matcher(args_spec):
 
     def _simple_query_args_matcher(request):
-        return _is_args_matched(request.arguments, args_spec.get('required', {}), args_spec.get('other_allowed', True))
+        return _is_args_matched(
+            request.query_arguments,
+            args_spec.get('required', {}),
+            args_spec.get('other_allowed', True)
+        )
 
     return _simple_query_args_matcher
 
@@ -485,7 +505,7 @@ def parse_options(args, err_func):
         if ports:
             ports = (i.strip() for i in ports.split(','))
             try:
-                ports = list(map(int, ports))
+                ports = [int(p) for p in ports]
             except (TypeError, ValueError):
                 err_func('Wrong port value')
                 return None
@@ -512,7 +532,9 @@ def main(args):
     application = build_app(config, debug=True)
     if watch:
         import tornado.autoreload
-        map(tornado.autoreload.watch, config.watched_files)
+        logger.debug('watch files:\n * %s', '\n * '.join(config.watched_files))
+        for file in config.watched_files:
+            tornado.autoreload.watch(file)
     server = HTTPServer(application)
     logger.info('Server started')
     logger.debug('Config: %s', config_full_path)
