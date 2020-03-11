@@ -8,7 +8,8 @@
     "urls": [
         {
             "path": "/",
-            "response": "Hi, I'm stub server.\nRUS: Привет, я stub-сервер."
+            "response": "Hi, I'm stub server.\nRUS: Привет, я stub-сервер.",
+            "delay": 3
         },
         {
             "path": "/status",

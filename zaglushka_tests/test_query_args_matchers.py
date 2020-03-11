@@ -1,4 +1,7 @@
 # coding: utf-8
+
+from urllib.parse import quote
+
 from zaglushka_tests import ZaglushkaAsyncHTTPTestCase
 
 
@@ -97,6 +100,18 @@ class SimpleRuleTestCase(ZaglushkaAsyncHTTPTestCase):
                     },
                     'response': 'path8',
                 },
+
+                # i8n params
+                {
+                    'path_regexp': '/path9',
+                    'query': {
+                        'required': {
+                            'cyrillic': ['я', 'ю'],
+                            'emoji': '💒'
+                        }
+                    },
+                    'response': 'path9',
+                },
             ]
         }
 
@@ -156,3 +171,11 @@ class SimpleRuleTestCase(ZaglushkaAsyncHTTPTestCase):
 
         self.assertIsDefaultResponse(self.fetch('/path7?any=other'))
         self.assertIsDefaultResponse(self.fetch('/path8?any=other'))
+
+    def test_international_params(self):
+
+        def _e(x):
+            return quote(x, encoding='utf-8')
+
+        query = 'cyrillic=' + _e('я') + '&cyrillic=' + _e('ю') + '&emoji=' + _e('💒')
+        self.assertResponseBody('path9', self.fetch('/path9?' + query))

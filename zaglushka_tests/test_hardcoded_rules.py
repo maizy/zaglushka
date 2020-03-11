@@ -52,7 +52,7 @@ class SimpleRuleTestCase(ZaglushkaAsyncHTTPTestCase):
     def test_path_match_and_hardcoded_json_response(self):
         response = self.fetch('/hardcoded_json')
         self.assertEqual(response.code, 200)
-        expected_body = json.dumps(self.raw_config['urls'][2]['response'], ensure_ascii=False, encoding='utf-8')
+        expected_body = json.dumps(self.raw_config['urls'][2]['response'], ensure_ascii=False)
         self.assertResponseBody(expected_body, response)
 
     def test_path_match_and_hardcoded_headers(self):

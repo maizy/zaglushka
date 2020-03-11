@@ -5,9 +5,7 @@ _version = '0.0.7'
 setup(
     name='zaglushka',
     version=_version,
-    install_requires=['tornado>=3.2'],
-    tests_require=['nose>=1.3', 'pep8>=1.3'],
-    test_suite='nose.collector',
+    install_requires=['tornado>=5.1,<6.1'],
     scripts=['zaglushka.py'],
     exclude=['zaglushka_tests/*'],
     author='Nikita Kovaliov',
@@ -24,7 +22,6 @@ setup(
         'Operating System :: MacOS :: MacOS X',
         'Operating System :: POSIX :: Linux',
         'Programming Language :: Python',
-        'Programming Language :: Python :: 2.7',
         'Topic :: Internet :: WWW/HTTP :: HTTP Servers',
         'Topic :: Software Development :: Testing',
     ],
