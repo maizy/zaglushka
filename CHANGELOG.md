@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (?)
+## 0.1.0 (2020-03-11)
 
 - support python 3.5+ - iss #17
 - drop python 2 support - iss #17
