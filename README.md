@@ -28,6 +28,10 @@ If you want to bind ports <= 1024 use `sudo`.
 
 ## Installation
 
+`pip install zaglushka` (recommended)
+
+or
+
 `pip install git+https://github.com/maizy/zaglushka.git`
 
 or
@@ -160,3 +164,12 @@ Server watched for any changes in stub files or config and reload automatically.
 
 * [issues](https://github.com/maizy/zaglushka/issues?q=is%3Aopen+is%3Aissue+no%3Amilestone)
 * [submit you own ideas or bugs](https://github.com/maizy/zaglushka/issues/new)
+
+
+## Build release
+
+* update version in `setup.py`
+* add git tag
+* setup ~/.pypirc
+* `python setup.py sdist`
+* `twine upload dist/*`

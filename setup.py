@@ -12,6 +12,7 @@ setup(
     author_email='nikita@maizy.ru',
     description='Http server for stubing backends and emulate some errors',
     license='MIT',
+    python_requires='>=3.5',
     download_url='https://github.com/maizy/zaglushka/tarball/{}'.format(_version),
     keywords='stubs api zaglushka',
     url='https://github.com/maizy/zaglushka',
